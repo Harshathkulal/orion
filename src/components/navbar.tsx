@@ -4,11 +4,11 @@ export default function Navbar() {
   return (
     <nav className="p-4">
       <div className="container mx-auto flex justify-between items-center">
-        <Link href="/" className="text-xl font-bold text-gray-800">
+        <Link href="/" className="text-xl font-bold hover:text-gray-300">
           Orion
         </Link>
         <div className="flex space-x-4">
-          <Link href="/features" className="text-gray-600 hover:text-gray-800">
+          <Link href="/features" className="hover:text-gray-300">
             Login
           </Link>
           
