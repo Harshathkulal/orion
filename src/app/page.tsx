@@ -1,8 +1,9 @@
+import Navbar from "@/components/navbar";
 
 export default function Home() {
   return (
-    <div className="text-4xl text-center">
-     Orion
+    <div className="text-center">
+      <Navbar />
     </div>
   );
 }
