@@ -24,7 +24,7 @@ export default function TextContent({
         </div>
       ) : (
         <div className="h-full overflow-y-auto px-4">
-          <div className="max-w-4xl mx-auto py-4">
+          <div className="max-w-4xl mx-auto p-4">
             <ReactMarkdown>{answer}</ReactMarkdown>
             {loading && (
               <div className="flex items-center text-gray-500 text-sm mt-4 animate-pulse">
