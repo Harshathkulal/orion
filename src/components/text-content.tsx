@@ -48,10 +48,10 @@ export default function TextContent({
   };
 
   return (
-    <div 
-      ref={contentRef} 
+    <div
+      ref={contentRef}
       className="p-4 w-full mx-auto overflow-y-auto"
-      style={{ maxHeight: 'calc(100vh - 100px)' }}
+      style={{ maxHeight: "calc(100vh - 100px)" }}
     >
       {initial && !loading ? (
         <div className="h-full flex items-center justify-center text-center">
@@ -67,7 +67,7 @@ export default function TextContent({
               code({ className, children }) {
                 const match = /language-(\w+)/.exec(className || "");
                 const codeString = String(children).replace(/\n$/, "");
-                
+
                 return match ? (
                   <div className="relative group">
                     <button
@@ -94,7 +94,7 @@ export default function TextContent({
                     {children}
                   </code>
                 );
-              }
+              },
             }}
           >
             {answer}
