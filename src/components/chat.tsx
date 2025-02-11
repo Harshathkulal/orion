@@ -3,17 +3,26 @@
 import React, { useState, useRef, useCallback } from "react";
 import TextInput from "@/components/text-input";
 import TextContent from "./text-content";
+import LoginDialog from "./login-dialog";
 
 export default function ChatPage() {
   const [question, setQuestion] = useState<string>("");
   const [answer, setAnswer] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [initial, setInitial] = useState<boolean>(true);
+  const [limitCount, setLimitCount] = useState<number>(0);
+  const [showLoginDialog, setShowLoginDialog] = useState<boolean>(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
+
+      // Check if limit reached
+      if (limitCount >= 3) {
+        setShowLoginDialog(true);
+        return;
+      }
 
       // Don't submit if question is empty or only whitespace
       if (!question.trim()) return;
@@ -63,6 +72,15 @@ export default function ChatPage() {
           // Update answer immediately
           setAnswer((prevAnswer) => prevAnswer + chunk);
         }
+
+        // Increment limit count after successful request
+        setLimitCount((prevCount) => {
+          const newCount = prevCount + 1;
+          if (newCount >= 5) {
+            setShowLoginDialog(true);
+          }
+          return newCount;
+        });
       } catch (error) {
         if (error instanceof Error) {
           if (error.name === "AbortError") {
@@ -78,7 +96,7 @@ export default function ChatPage() {
         abortControllerRef.current = null;
       }
     },
-    [question]
+    [question, limitCount]
   );
 
   const handleStop = useCallback(() => {
@@ -98,6 +116,8 @@ export default function ChatPage() {
         loading={loading}
         handleStop={handleStop}
       />
+
+      <LoginDialog open={showLoginDialog} onOpenChange={setShowLoginDialog} />
     </div>
   );
 }
