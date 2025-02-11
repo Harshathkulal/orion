@@ -23,7 +23,7 @@ export default function TextInput({
 
   return (
     <div className="fixed bottom-0 w-full bg-background z-40">
-      <div className="max-w-4xl mx-auto p-4 ">
+      <div className="max-w-4xl mx-auto p-4">
         <form onSubmit={onSubmit} className="relative">
           <div className="relative">
             <Textarea
@@ -39,18 +39,25 @@ export default function TextInput({
                 overflowY: "auto",
               }}
             />
-            <Button
-              type="submit"
-              disabled={isDisabled || loading}
-              aria-label="Send message"
-              className="absolute right-2 bottom-2 h-10 w-10 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm"
-            >
-              {loading ? (
-                <StopCircle className="h-5 w-5" onClick={handleStop} />
-              ) : (
+            {loading ? (
+              <Button
+                type="button"
+                onClick={handleStop}
+                aria-label="Stop generation"
+                className="absolute right-2 bottom-2 h-10 w-10 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm"
+              >
+                <StopCircle className="h-5 w-5" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={isDisabled}
+                aria-label="Send message"
+                className="absolute right-2 bottom-2 h-10 w-10 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm"
+              >
                 <Send className="h-5 w-5" />
-              )}
-            </Button>
+              </Button>
+            )}
           </div>
         </form>
         <p className="text-xs text-center mt-2">
