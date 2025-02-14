@@ -3,14 +3,7 @@ import React from "react";
 import { Send, StopCircle } from "lucide-react";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
-
-interface TextInputProps {
-  question: string;
-  setQuestion: (value: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
-  loading: boolean;
-  handleStop: () => void;
-}
+import { TextInputProps } from "@/types/types";
 
 export default function TextInput({
   question,

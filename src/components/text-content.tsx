@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Loader, Copy, Check } from "lucide-react";
+import { Loader, Copy, Check, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
@@ -23,6 +23,13 @@ const LoadingIndicator = () => (
   <div className="flex items-center gap-2 text-gray-500 text-sm mt-4">
     <Loader className="animate-spin" size={16} />
     <span>Generating...</span>
+  </div>
+);
+
+const ErrorMessage = ({ message }: { message: string }) => (
+  <div className="flex items-center gap-2 text-red-500 text-sm mt-4 bg-red-50 dark:bg-red-900/10 p-3 rounded-md">
+    <AlertCircle size={16} />
+    <span>{message}</span>
   </div>
 );
 
@@ -92,6 +99,7 @@ const TextContent: React.FC<TextContentProps> = ({
   answer,
   loading,
   initial,
+  error,
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -129,6 +137,7 @@ const TextContent: React.FC<TextContentProps> = ({
             {answer}
           </ReactMarkdown>
           {loading && <LoadingIndicator />}
+          {error && !loading && <ErrorMessage message={error} />}
         </div>
       )}
     </div>
