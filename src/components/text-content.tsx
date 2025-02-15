@@ -34,7 +34,7 @@ const ErrorMessage = ({ message }: { message: string }) => (
 
 const CodeBlock = ({ className, children }: CodeBlockProps) => {
   const [isCopied, setIsCopied] = useState(false);
-  const match = /language-(\w+)/.exec(className || "");
+  const languageMatch = /language-(\w+)/.exec(className || "");
   const codeString = String(children).replace(/\n$/, "");
 
   const handleCopy = async () => {
@@ -43,7 +43,7 @@ const CodeBlock = ({ className, children }: CodeBlockProps) => {
     setTimeout(() => setIsCopied(false), COPY_TIMEOUT_MS);
   };
 
-  return match ? (
+  return languageMatch ? (
     <div className="relative">
       <button
         onClick={handleCopy}
@@ -61,15 +61,14 @@ const CodeBlock = ({ className, children }: CodeBlockProps) => {
           style={vscDarkPlus}
           language="javascript"
           PreTag="div"
+          className="rounded-md"
         >
           {codeString}
         </SyntaxHighlighter>
       </div>
     </div>
   ) : (
-    <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5">
-      {children}
-    </code>
+    <code className="bg-zinc-800 rounded px-1 py-0.5">{children}</code>
   );
 };
 
