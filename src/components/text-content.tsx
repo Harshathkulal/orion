@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Loader, Copy, Check, AlertCircle } from "lucide-react";
+import { Loader, Clipboard, Check, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
@@ -10,7 +10,7 @@ import { Message, TextContentProps, CodeBlockProps } from "@/types/types";
 const COPY_TIMEOUT_MS = 2000;
 
 const WelcomeMessage = () => (
-  <div className="h-full flex items-center justify-center text-center">
+  <div className="h-full flex items-center justify-center text-center p-4">
     <div>
       <h1 className="text-2xl font-semibold mb-2">Welcome!</h1>
       <p className="text-gray-600">How can I help you today?</p>
@@ -44,26 +44,27 @@ const CodeBlock = ({ className, children }: CodeBlockProps) => {
   };
 
   return match ? (
-    <div className="relative group">
+    <div className="relative">
       <button
         onClick={handleCopy}
-        className="absolute right-2 top-2 p-2 rounded bg-gray-700 transition-opacity"
+        className="absolute right-2 top-4 p-2 rounded bg-zinc-700 z-10"
         title="Copy code"
       >
         {isCopied ? (
           <Check size={14} className="text-green-400" />
         ) : (
-          <Copy size={14} className="text-gray-300" />
+          <Clipboard size={14} className="text-gray-300" />
         )}
       </button>
-      <SyntaxHighlighter
-        style={vscDarkPlus}
-        language={match[1]}
-        PreTag="div"
-        className="rounded-md"
-      >
-        {codeString}
-      </SyntaxHighlighter>
+      <div className="max-w-full overflow-x-auto">
+        <SyntaxHighlighter
+          style={vscDarkPlus}
+          language="javascript"
+          PreTag="div"
+        >
+          {codeString}
+        </SyntaxHighlighter>
+      </div>
     </div>
   ) : (
     <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5">
@@ -76,14 +77,14 @@ const MessageBubble: React.FC<{ message: Message }> = ({ message }) => (
   <div
     className={`flex ${
       message.role === "user" ? "justify-end" : "justify-start"
-    } mb-4`}
+    } mb-4 max-w-full`}
   >
     <div
-      className={`rounded-lg ${
+      className={`${
         message.role === "user"
           ? "bg-gray-500/45 px-5 py-2.5 rounded-2xl"
           : "pb-2"
-      }`}
+      } max-w-full overflow-hidden`}
     >
       <ReactMarkdown components={{ code: CodeBlock }}>
         {message.content}
@@ -109,18 +110,20 @@ export const TextContent: React.FC<TextContentProps> = ({
   return (
     <div
       ref={contentRef}
-      className="p-4 w-full max-w-4xl mx-auto flex flex-col"
-      style={{ maxHeight: "calc(100vh - 100px)" }}
+      className="h-full w-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+      style={{ height: "calc(100vh - 100px)" }}
     >
-      {initial && !loading ? (
-        <WelcomeMessage />
-      ) : (
-        messages.map((message, index) => (
-          <MessageBubble key={index} message={message} />
-        ))
-      )}
-      {loading && <LoadingIndicator />}
-      {error && <ErrorMessage message={error} />}
+      <div className="max-w-4xl mx-auto px-4 py-6 pb-20">
+        {initial && !loading ? (
+          <WelcomeMessage />
+        ) : (
+          messages.map((message, index) => (
+            <MessageBubble key={index} message={message} />
+          ))
+        )}
+        {loading && <LoadingIndicator />}
+        {error && <ErrorMessage message={error} />}
+      </div>
     </div>
   );
 };

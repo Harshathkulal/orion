@@ -1,6 +1,5 @@
 export interface TextContentProps {
   messages: Message[];
-  answer: string;
   loading: boolean;
   initial: boolean;
   error: string | null;

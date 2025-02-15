@@ -121,7 +121,6 @@ export default function ChatPage() {
     <div className="flex flex-col flex-1">
       <TextContent
         messages={messages}
-        answer=""
         loading={loading}
         initial={initial}
         error={error}
