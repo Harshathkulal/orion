@@ -1,7 +1,7 @@
 "use client";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Send, StopCircle } from "lucide-react";
-import { Textarea } from "./ui/textarea";
+import { Textarea } from "./ui/textarea"; // Keeping textarea for auto-resizing
 import { Button } from "./ui/button";
 import { TextInputProps } from "@/types/types";
 
@@ -14,14 +14,40 @@ export default function TextInput({
 }: TextInputProps) {
   const isDisabled = question.trim() === "";
 
+  // Ref for the textarea to control its resizing
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Resize the textarea based on content
+  const handleResize = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"; // Reset height to auto
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`; // Set height based on content
+    }
+  };
+
+  // Call the handleResize whenever question changes
+  useEffect(() => {
+    handleResize();
+  }, [question]);
+
+  // Handle Enter key behavior
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      onSubmit(e);
+    }
+  };
+
   return (
     <div className="fixed bottom-0 w-full bg-background z-40">
       <div className="max-w-4xl mx-auto p-4">
         <form onSubmit={onSubmit} className="relative">
           <div className="relative">
             <Textarea
+              ref={textareaRef}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Type your message..."
               className="w-full pr-12 resize-none transition-all duration-200 ease-in-out"
               disabled={loading}
