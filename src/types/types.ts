@@ -6,7 +6,7 @@ export interface TextContentProps {
 }
 
 export interface Message {
-  role: 'user' | 'assistant';
+  role: 'user' | 'model';
   content: string;
 }
 

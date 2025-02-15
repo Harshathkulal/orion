@@ -55,11 +55,16 @@ export default function ChatPage() {
     const signal = abortControllerRef.current.signal;
 
     try {
+      const conversationHistory = messages.length > 0 ? messages : [];
+
       const response = await fetch(API_ENDPOINT, {
         method: "POST",
         signal,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: trimmedQuestion }),
+        body: JSON.stringify({
+          question: trimmedQuestion,
+          conversationHistory,
+        }),
       });
 
       if (!response.ok)
@@ -73,7 +78,7 @@ export default function ChatPage() {
       // Add assistant message placeholder
       setMessages((prev: Message[]) => [
         ...prev,
-        { role: "assistant", content: "" },
+        { role: "model", content: "" },
       ]);
 
       while (true) {
@@ -86,7 +91,7 @@ export default function ChatPage() {
         setMessages((prev: Message[]) => {
           const newMessages = [...prev];
           newMessages[newMessages.length - 1] = {
-            role: "assistant",
+            role: "model",
             content: currentResponse,
           };
           return newMessages;
@@ -104,7 +109,7 @@ export default function ChatPage() {
 
       setMessages((prev: Message[]) => [
         ...prev,
-        { role: "assistant", content: currentResponse || errorMsg },
+        { role: "model", content: currentResponse || errorMsg },
       ]);
     } finally {
       setLoading(false);
