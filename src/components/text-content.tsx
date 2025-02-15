@@ -13,13 +13,13 @@ const WelcomeMessage = () => (
   <div className="h-full flex items-center justify-center text-center p-4">
     <div>
       <h1 className="text-2xl font-semibold mb-2">Welcome!</h1>
-      <p className="text-gray-600">How can I help you today?</p>
+      <p className="text-primary/60">How can I help you today?</p>
     </div>
   </div>
 );
 
 const LoadingIndicator = () => (
-  <div className="flex items-center gap-2 text-gray-500 text-sm mt-4">
+  <div className="flex items-center gap-2 text-muted-foreground text-sm mt-4 ">
     <Loader className="animate-spin" size={16} />
     <span>Generating...</span>
   </div>
@@ -56,7 +56,7 @@ const CodeBlock = ({ className, children }: CodeBlockProps) => {
           <Clipboard size={14} className="text-gray-300" />
         )}
       </button>
-      <div className="max-w-full overflow-x-auto">
+      <div className="max-w-full overflow-x-auto py-1">
         <SyntaxHighlighter
           style={vscDarkPlus}
           language="javascript"
@@ -72,6 +72,26 @@ const CodeBlock = ({ className, children }: CodeBlockProps) => {
   );
 };
 
+const OpenLinkInNewTab = ({
+  children,
+  ...props
+}: React.ComponentPropsWithRef<"a">) => {
+  return (
+    <a
+      href={props.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-blue-500 underline"
+    >
+      {children}
+    </a>
+  );
+};
+
+const BulletPointList = ({ ...props }) => (
+  <ul className="list-disc pl-4 py-2" {...props} />
+);
+
 const MessageBubble: React.FC<{ message: Message }> = ({ message }) => (
   <div
     className={`flex ${
@@ -85,7 +105,13 @@ const MessageBubble: React.FC<{ message: Message }> = ({ message }) => (
           : "pb-2"
       } max-w-full overflow-hidden`}
     >
-      <ReactMarkdown components={{ code: CodeBlock }}>
+      <ReactMarkdown
+        components={{
+          code: CodeBlock,
+          a: OpenLinkInNewTab,
+          ul: BulletPointList,
+        }}
+      >
         {message.content}
       </ReactMarkdown>
     </div>
