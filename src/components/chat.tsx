@@ -1,213 +1,139 @@
 "use client";
 
-import React from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import TextInput from "@/components/text-input";
 import TextContent from "./text-content";
 import LoginDialog from "./login-dialog";
-
-interface ChatState {
-  question: string;
-  answer: string;
-  loading: boolean;
-  initial: boolean;
-  messageCount: number;
-  showLoginDialog: boolean;
-  error: string | null;
-}
-
-type ChatStateUpdate =
-  | Partial<ChatState>
-  | ((prev: ChatState) => Partial<ChatState>);
+import { Message } from "@/types/types";
 
 const MAX_FREE_MESSAGES = 3;
 const API_ENDPOINT = "/api/text";
 
-const useStreamReader = () => {
-  const abortControllerRef = React.useRef<AbortController | null>(null);
+export default function ChatPage() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [question, setQuestion] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [initial, setInitial] = useState(true);
+  const [messageCount, setMessageCount] = useState(0);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const cleanup = React.useCallback(() => {
+  // Cleanup function for aborting previous requests
+  const cleanup = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
   }, []);
 
-  React.useEffect(() => {
-    return cleanup;
-  }, [cleanup]);
+  useEffect(() => cleanup, [cleanup]);
 
-  return {
-    getSignal: () => {
-      cleanup();
-      abortControllerRef.current = new AbortController();
-      return abortControllerRef.current.signal;
-    },
-    cleanup,
-  };
-};
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-const useChatState = (initialState: Partial<ChatState> = {}) => {
-  const [state, setState] = React.useState<ChatState>({
-    question: "",
-    answer: "",
-    loading: false,
-    initial: true,
-    messageCount: 0,
-    showLoginDialog: false,
-    error: null,
-    ...initialState,
-  });
-
-  const updateState = React.useCallback((update: ChatStateUpdate) => {
-    setState((prev) => ({
-      ...prev,
-      ...(typeof update === "function" ? update(prev) : update),
-    }));
-  }, []);
-
-  return [state, updateState] as const;
-};
-
-export default function ChatPage() {
-  const [state, updateState] = useChatState();
-  const streamReader = useStreamReader();
-
-  const checkMessageLimit = React.useCallback(() => {
-    if (state.messageCount >= MAX_FREE_MESSAGES) {
-      updateState({ showLoginDialog: true });
-      return false;
+    if (messageCount >= MAX_FREE_MESSAGES) {
+      setShowLoginDialog(true);
+      return;
     }
-    return true;
-  }, [state.messageCount, updateState]);
 
-  const processStream = React.useCallback(
-    async (response: Response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    const trimmedQuestion = question.trim();
+    if (!trimmedQuestion) return;
 
-      if (!response.body) {
-        throw new Error("ReadableStream not supported in this browser");
-      }
+    // Add user's message immediately
+    setMessages((prev: Message[]) => [
+      ...prev,
+      { role: "user", content: trimmedQuestion },
+    ]);
+    setInitial(false);
+    setLoading(true);
+    setError(null);
+    setQuestion("");
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
+    let currentResponse = "";
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          updateState((prev) => ({
-            answer: prev.answer + chunk,
-            error: null,
-          }));
-        }
-      } catch (error) {
-        reader.cancel();
-        throw error;
-      }
-    },
-    [updateState]
-  );
-
-  const handleSubmit = React.useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-
-      if (!checkMessageLimit()) return;
-
-      const trimmedQuestion = state.question.trim();
-      if (!trimmedQuestion) return;
-
-      updateState({
-        initial: false,
-        loading: true,
-        answer: "",
-        error: null,
+    try {
+      const response = await fetch(API_ENDPOINT, {
+        method: "POST",
+        signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: trimmedQuestion }),
       });
 
-      try {
-        const response = await fetch(API_ENDPOINT, {
-          method: "POST",
-          signal: streamReader.getSignal(),
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ question: trimmedQuestion }),
-        });
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
 
-        await processStream(response);
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("ReadableStream not supported");
 
-        updateState((prev) => ({
-          messageCount: prev.messageCount + 1,
-          showLoginDialog: prev.messageCount + 1 >= MAX_FREE_MESSAGES,
-        }));
-      } catch (error) {
-        if (error instanceof Error) {
-          if (error.name === "AbortError") {
-            console.log("Request was aborted");
-            updateState({
-              error: "Response generation was stopped.",
-              answer: state.answer || "Response generation was stopped.",
-            });
-          } else {
-            console.error("Error:", error);
-            updateState({
-              error: "Failed to get response. Please try again.",
-              answer:
-                state.answer || "Failed to get response. Please try again.",
-            });
-          }
-        }
-      } finally {
-        updateState({
-          loading: false,
-          question: "",
+      const decoder = new TextDecoder();
+
+      // Add assistant message placeholder
+      setMessages((prev: Message[]) => [
+        ...prev,
+        { role: "assistant", content: "" },
+      ]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        currentResponse += decoder.decode(value, { stream: true });
+
+        // Update last assistant message with streaming content
+        setMessages((prev: Message[]) => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = {
+            role: "assistant",
+            content: currentResponse,
+          };
+          return newMessages;
         });
       }
-    },
-    [
-      state.question,
-      state.answer,
-      checkMessageLimit,
-      processStream,
-      streamReader,
-      updateState,
-    ]
-  );
 
-  const handleStop = React.useCallback(() => {
-    streamReader.cleanup();
-    updateState({
-      loading: false,
-      error: "Response generation was stopped.",
-    });
-  }, [streamReader, updateState]);
+      setMessageCount((prev: number) => prev + 1);
+      if (messageCount + 1 >= MAX_FREE_MESSAGES) setShowLoginDialog(true);
+    } catch (err: unknown) {
+      const errorMsg =
+        err instanceof Error && err.name === "AbortError"
+          ? "Response was stopped."
+          : "Failed to get response.";
+      setError(errorMsg);
+
+      setMessages((prev: Message[]) => [
+        ...prev,
+        { role: "assistant", content: currentResponse || errorMsg },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStop = () => {
+    cleanup();
+    setLoading(false);
+    setError("Response was stopped.");
+  };
 
   return (
     <div className="flex flex-col flex-1">
       <TextContent
-        answer={state.answer}
-        loading={state.loading}
-        initial={state.initial}
-        error={state.error}
+        messages={messages}
+        answer=""
+        loading={loading}
+        initial={initial}
+        error={error}
       />
       <TextInput
-        question={state.question}
-        setQuestion={(question: string) => updateState({ question })}
+        question={question}
+        setQuestion={setQuestion}
         onSubmit={handleSubmit}
-        loading={state.loading}
+        loading={loading}
         handleStop={handleStop}
       />
-      <LoginDialog
-        open={state.showLoginDialog}
-        onOpenChange={(showLoginDialog: boolean) =>
-          updateState({ showLoginDialog })
-        }
-      />
+      <LoginDialog open={showLoginDialog} onOpenChange={setShowLoginDialog} />
     </div>
   );
 }

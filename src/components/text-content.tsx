@@ -1,12 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Loader, Copy, Check, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import { TextContentProps, CodeBlockProps } from "@/types/types";
-import { useEffect, useRef, useState } from "react";
+import { Message, TextContentProps, CodeBlockProps } from "@/types/types";
 
 const COPY_TIMEOUT_MS = 2000;
 
@@ -44,15 +43,7 @@ const CodeBlock = ({ className, children }: CodeBlockProps) => {
     setTimeout(() => setIsCopied(false), COPY_TIMEOUT_MS);
   };
 
-  if (!match) {
-    return (
-      <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5">
-        {children}
-      </code>
-    );
-  }
-
-  return (
+  return match ? (
     <div className="relative group">
       <button
         onClick={handleCopy}
@@ -67,36 +58,42 @@ const CodeBlock = ({ className, children }: CodeBlockProps) => {
       </button>
       <SyntaxHighlighter
         style={vscDarkPlus}
-        language="javascript"
+        language={match[1]}
         PreTag="div"
         className="rounded-md"
       >
         {codeString}
       </SyntaxHighlighter>
     </div>
-  );
-};
-
-const OpenLinkInNewTab = ({
-  href = "",
-  children,
-  ...props
-}: React.ComponentPropsWithRef<"a">) => {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-blue-500 underline"
-      {...props}
-    >
+  ) : (
+    <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5">
       {children}
-    </a>
+    </code>
   );
 };
 
-const TextContent: React.FC<TextContentProps> = ({
-  answer,
+const MessageBubble: React.FC<{ message: Message }> = ({ message }) => (
+  <div
+    className={`flex ${
+      message.role === "user" ? "justify-end" : "justify-start"
+    } mb-4`}
+  >
+    <div
+      className={`rounded-lg ${
+        message.role === "user"
+          ? "bg-gray-500/45 px-5 py-2.5 rounded-2xl"
+          : "pb-2"
+      }`}
+    >
+      <ReactMarkdown components={{ code: CodeBlock }}>
+        {message.content}
+      </ReactMarkdown>
+    </div>
+  </div>
+);
+
+export const TextContent: React.FC<TextContentProps> = ({
+  messages,
   loading,
   initial,
   error,
@@ -104,42 +101,26 @@ const TextContent: React.FC<TextContentProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!contentRef.current || !loading) return;
-
-    const scrollToBottom = () => {
-      if (contentRef.current) {
-        contentRef.current.scrollTop = contentRef.current.scrollHeight;
-      }
-    };
-
-    scrollToBottom();
-
-    const observer = new MutationObserver(scrollToBottom);
-    observer.observe(contentRef.current, {
-      childList: true,
-      subtree: true,
-    });
-
-    return () => observer.disconnect();
-  }, [answer, loading]);
+    if (contentRef.current) {
+      contentRef.current.scrollTop = contentRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   return (
     <div
       ref={contentRef}
-      className="p-4 w-full mx-auto overflow-y-auto"
+      className="p-4 w-full max-w-4xl mx-auto flex flex-col"
       style={{ maxHeight: "calc(100vh - 100px)" }}
     >
       {initial && !loading ? (
         <WelcomeMessage />
       ) : (
-        <div className="max-w-4xl mx-auto p-4">
-          <ReactMarkdown components={{ code: CodeBlock, a: OpenLinkInNewTab }}>
-            {answer}
-          </ReactMarkdown>
-          {loading && <LoadingIndicator />}
-          {error && !loading && <ErrorMessage message={error} />}
-        </div>
+        messages.map((message, index) => (
+          <MessageBubble key={index} message={message} />
+        ))
       )}
+      {loading && <LoadingIndicator />}
+      {error && <ErrorMessage message={error} />}
     </div>
   );
 };
