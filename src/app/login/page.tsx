@@ -4,7 +4,7 @@ import React from 'react';
 import { useSignIn } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { Separator } from "@/components/ui/separator";
@@ -20,23 +20,27 @@ const LoginPage = () => {
     return null;
   }
 
-  const handleEmailSignIn = async (e) => {
+  interface SignInResult {
+    status: 'needs_first_factor' | string | null;
+  }
+
+  const handleEmailSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
       // Initiate the email verification flow
-      const result = await signIn.create({
-        identifier: email,
+      const result: SignInResult = await signIn.create({
+      identifier: email,
       });
 
       // Clerk will send a verification code to the user's email
       if (result.status === "needs_first_factor") {
-        // Redirect or show a message to check the user's email
+      // Redirect to the verification code page
         alert("Check your email for the verification code.");
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error during sign-in:", err);
       setError("Something went wrong. Please try again.");
     } finally {
@@ -51,7 +55,8 @@ const LoginPage = () => {
         redirectUrl: "/sso-callback",
         redirectUrlComplete: "/dashboard",
       });
-    } catch (err) {
+    } catch (err: unknown) {
+      console.error("Error signing in with Google:", err);
       setError("Error signing in with Google");
     }
   };
