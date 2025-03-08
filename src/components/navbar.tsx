@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAuth, useUser, useClerk } from "@clerk/nextjs";
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
+import { LogIn } from "lucide-react";
 
 export default function Navbar() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -65,7 +66,7 @@ export default function Navbar() {
               </div>
             ) : (
               <Link href="/login" className="hover:text-gray-300 font-medium">
-                Login
+                <LogIn size={24} />
               </Link>
             )
           )}
