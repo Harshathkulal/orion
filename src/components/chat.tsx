@@ -5,11 +5,13 @@ import TextInput from "@/components/text-input";
 import TextContent from "./text-content";
 import LoginDialog from "./login-dialog";
 import { Message } from "@/types/types";
+import { useAuth } from "@clerk/nextjs";
 
 const MAX_FREE_MESSAGES = 3;
 const API_ENDPOINT = "/api/text";
 
 export default function ChatPage() {
+  const { isSignedIn } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,7 +34,8 @@ export default function ChatPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (messageCount >= MAX_FREE_MESSAGES) {
+    // Only check message limit for users who aren't signed in
+    if (!isSignedIn && messageCount >= MAX_FREE_MESSAGES) {
       setShowLoginDialog(true);
       return;
     }
@@ -98,8 +101,11 @@ export default function ChatPage() {
         });
       }
 
-      setMessageCount((prev: number) => prev + 1);
-      if (messageCount + 1 >= MAX_FREE_MESSAGES) setShowLoginDialog(true);
+      // Only increment message count for non-signed-in users
+      if (!isSignedIn) {
+        setMessageCount((prev: number) => prev + 1);
+        if (messageCount + 1 >= MAX_FREE_MESSAGES) setShowLoginDialog(true);
+      }
     } catch (err: unknown) {
       const errorMsg =
         err instanceof Error && err.name === "AbortError"

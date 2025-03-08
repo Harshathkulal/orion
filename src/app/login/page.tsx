@@ -1,7 +1,8 @@
 "use client";
 
-import React from 'react';
-import { useSignIn } from "@clerk/nextjs";
+import React, { useEffect } from 'react';
+import { useSignIn, useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -11,12 +12,21 @@ import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const LoginPage = () => {
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const { isLoaded, signIn } = useSignIn();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  if (!isLoaded) {
+  // Redirect if already signed in
+  useEffect(() => {
+    if (authLoaded && isSignedIn) {
+      router.replace('/');
+    }
+  }, [authLoaded, isSignedIn, router]);
+
+  if (!isLoaded || !authLoaded) {
     return null;
   }
 
