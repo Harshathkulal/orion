@@ -49,7 +49,6 @@ const LoginPage = () => {
 
       // Clerk will send a verification code to the user's email
       if (result.status === "needs_first_factor") {
-        // Show verification code input instead of alert
         setShowVerificationInput(true);
       }
     } catch (err: unknown) {
@@ -66,7 +65,6 @@ const LoginPage = () => {
     setError("");
 
     try {
-      // Attempt to verify the code
       const result = await signIn.attemptFirstFactor({
         strategy: "email_code",
         code: verificationCode,
