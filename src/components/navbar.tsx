@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useAuth, useUser, useClerk } from "@clerk/nextjs";
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { LogIn } from "lucide-react";
+import { LogIn, MessageSquare, Image as ImageIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 export default function Navbar() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -12,6 +13,7 @@ export default function Navbar() {
   const { signOut } = useClerk();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -35,22 +37,49 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full bg-background">
       <div className="container flex items-center justify-between h-16 mx-auto">
-        <Link href="/" className="text-xl font-bold hover:text-gray-300 px-6">
-          Orion
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link href="/" className="text-xl font-bold hover:text-gray-300 px-2">
+            Orion
+          </Link>
+          
+          <nav className="flex items-center gap-4">
+            <Link 
+              href="/" 
+              className={`flex items-center gap-2 px-3 py-2 rounded-md ${
+                pathname === "/" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+              }`}
+            >
+              <MessageSquare size={18} />
+              <span>Text</span>
+            </Link>
+            
+            <Link 
+              href="/image" 
+              className={`flex items-center gap-2 px-3 py-2 rounded-md ${
+                pathname === "/image" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+              }`}
+            >
+              <ImageIcon size={18} />
+              <span>Image</span>
+            </Link>
+          </nav>
+        </div>
         
         <div className="px-6">
           {isLoaded && (
             isSignedIn ? (
               <div className="relative" ref={dropdownRef}>
-                <button 
+                <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="flex items-center focus:outline-none"
                 >
-                  <Image src={user?.imageUrl || '/default-avatar.png'} 
-                    alt="Profile" width={32} height={32}
-                    className="w-8 h-8 rounded-full object-cover"/>
-                  
+                  <Image 
+                    src={user?.imageUrl || '/default-avatar.png'} 
+                    alt="Profile" 
+                    width={32} 
+                    height={32}
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
                 </button>
                 
                 {dropdownOpen && (
