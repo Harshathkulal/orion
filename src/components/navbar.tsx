@@ -41,11 +41,13 @@ export default function Navbar() {
           <Link href="/" className="text-xl font-bold hover:text-gray-300 px-2">
             Orion
           </Link>
-          
-          <nav className="flex items-center gap-4">
+        </div>
+        
+        <div className="px-6 flex items-center gap-8">
+        <nav className="flex items-center gap-4">
             <Link 
               href="/" 
-              className={`flex items-center gap-2 px-3 py-2 rounded-md ${
+              className={`flex items-center gap-2 px-2 py-1 rounded-md ${
                 pathname === "/" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
               }`}
             >
@@ -55,7 +57,7 @@ export default function Navbar() {
             
             <Link 
               href="/image" 
-              className={`flex items-center gap-2 px-3 py-2 rounded-md ${
+              className={`flex items-center gap-2 px-2 py-1 rounded-md ${
                 pathname === "/image" ? "bg-primary text-primary-foreground" : "hover:bg-muted"
               }`}
             >
@@ -63,9 +65,6 @@ export default function Navbar() {
               <span>Image</span>
             </Link>
           </nav>
-        </div>
-        
-        <div className="px-6">
           {isLoaded && (
             isSignedIn ? (
               <div className="relative" ref={dropdownRef}>
