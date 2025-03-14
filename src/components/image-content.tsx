@@ -38,8 +38,8 @@ export default function ImageContent({
             src={imageUrl}
             alt="Generated image"
             className="max-w-full max-h-full object-contain rounded-md"
-            width={512}
-            height={512}
+            width={400}
+            height={400}
           />
         </div>
       ) : (
