@@ -1,23 +1,23 @@
 "use client";
+
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import TextInput from "@/components/text-input";
 import ImageContent from "./image-content";
 import LoginDialog from "./login-dialog";
-import { Message } from "@/types/types";
 import { useAuth } from "@clerk/nextjs";
 
 const MAX_FREE_MESSAGES = 3;
-const API_ENDPOINT = "/api/text";
+const API_ENDPOINT = "/api/image";
 
 export default function ImagePage() {
   const { isSignedIn } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [question, setQuestion] = useState("");
+  const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [initial, setInitial] = useState(true);
   const [messageCount, setMessageCount] = useState(0);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Cleanup function for aborting previous requests
@@ -33,7 +33,7 @@ export default function ImagePage() {
   const handleStop = () => {
     cleanup();
     setLoading(false);
-    setError("Response was stopped.");
+    setError("Generation was stopped.");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,53 +44,44 @@ export default function ImagePage() {
       setShowLoginDialog(true);
       return;
     }
-    
-    if (!question.trim()) return;
-    
-    // Add user message to the messages array
-    const userMessage: Message = { role: "user", content: question };
-    setMessages((prev) => [...prev, userMessage]);
-    
-    // Update message count for non-signed in users
-    if (!isSignedIn) {
-      setMessageCount((prev) => prev + 1);
+
+    if (!prompt.trim()) {
+      return;
     }
-    
-    setQuestion("");
-    setLoading(true);
+
     setInitial(false);
+    setLoading(true);
     setError(null);
-    
+    setImageUrl(null);
+
     // Create new AbortController for this request
     cleanup();
     abortControllerRef.current = new AbortController();
-    
+
     try {
       const response = await fetch(API_ENDPOINT, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: question }),
-        signal: abortControllerRef.current.signal
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt }),
+        signal: abortControllerRef.current.signal,
       });
-      
+
       if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate image");
       }
-      
+
       const data = await response.json();
-      
-      // Add assistant message with image to messages array
-      setMessages((prev) => [
-        ...prev,
-        { 
-          role: "assistant", 
-          content: data.message || "",
-          image: data.imageUrl || "" 
-        }
-      ]);
-    } catch (err) {
-      if (err instanceof Error && err.name !== "AbortError") {
-        setError(err.message);
+      setImageUrl(data.url);
+      setMessageCount((prev) => prev + 1);
+    } catch (error) {
+      if (error instanceof Error && error.name !== "AbortError") {
+        setError(
+          error.message || "An error occurred while generating the image"
+        );
+        console.error(error);
       }
     } finally {
       setLoading(false);
@@ -101,14 +92,14 @@ export default function ImagePage() {
   return (
     <div className="flex flex-col flex-1">
       <ImageContent
-        messages={messages}
-        loading={loading}
         initial={initial}
+        loading={loading}
         error={error}
+        imageUrl={imageUrl}
       />
       <TextInput
-        question={question}
-        setQuestion={setQuestion}
+        question={prompt}
+        setQuestion={setPrompt}
         onSubmit={handleSubmit}
         loading={loading}
         handleStop={handleStop}
