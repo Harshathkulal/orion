@@ -138,7 +138,7 @@ export const TextContent: React.FC<TextContentProps> = ({
       className="h-full w-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
       style={{ height: "calc(100vh - 100px)" }}
     >
-      <div className="max-w-4xl mx-auto px-4 py-6 pb-20">
+      <div className="max-w-4xl mx-auto px-4 py-6 pt-20">
         {initial && !loading ? (
           <WelcomeMessage />
         ) : (
