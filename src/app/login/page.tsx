@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useSignIn, useAuth } from "@clerk/nextjs";
+import { useSignIn, useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 const LoginPage = () => {
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const { isLoaded, signIn } = useSignIn();
+  const { user } = useUser();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -23,11 +24,11 @@ const LoginPage = () => {
 
   // Redirect if already signed in
   useEffect(() => {
-    if (authLoaded && isSignedIn) {
+    if (authLoaded && isSignedIn && user) {
       saveUserToDatabase();
       router.replace('/');
     }
-  }, [authLoaded, isSignedIn, router]);
+  }, [authLoaded, isSignedIn, router, user]);
 
   if (!isLoaded || !authLoaded) {
     return null;
@@ -38,12 +39,24 @@ const LoginPage = () => {
   }
 
   const saveUserToDatabase = async () => {
+    if (!user) return;
+    
     try {
+      // Get current user data from Clerk
+      const userData = {
+        clerkId: user.id,
+        email: user.primaryEmailAddress?.emailAddress,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        imageUrl: user.imageUrl,
+      };
+
       const response = await fetch('/api/user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify(userData),
       });
   
       if (!response.ok) {
