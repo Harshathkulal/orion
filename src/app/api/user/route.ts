@@ -31,13 +31,11 @@ export async function POST(request: Request) {
       data: {
         clerkId: userId,
         email: userData.email,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        imageUrl: userData.imageUrl,
         profile: {
           create: {
             firstName: userData.firstName,
-          } // Create empty profile
+            lastName: userData.lastName,
+          }
         }
       },
     });
