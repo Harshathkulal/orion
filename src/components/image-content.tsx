@@ -30,7 +30,7 @@ export default function ImageContent({
   };
 
   return (
-    <div className="flex-1 p-4 pt-10">
+    <div className="flex-1 p-4 pt-8">
       {initial ? (
         <div className="h-full flex items-center justify-center text-center pt-14">
           <div>
@@ -47,7 +47,7 @@ export default function ImageContent({
           <p className="text-red-500">{error}</p>
         </div>
       ) : imageUrl ? (
-        <div className="h-full flex flex-col items-center justify-center gap-4">
+        <div className="h-full flex flex-col items-center justify-center gap-4 ">
           <Image
             src={imageUrl}
             alt="Generated image"
