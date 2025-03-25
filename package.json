@@ -26,6 +26,7 @@
     "react-dom": "^19.0.0",
     "react-markdown": "^9.0.3",
     "react-syntax-highlighter": "^15.6.1",
+    "svix": "^1.62.0",
     "tailwind-merge": "^3.0.1",
     "tailwind-scrollbar": "^3.0.0",
     "tailwindcss-animate": "^1.0.7"

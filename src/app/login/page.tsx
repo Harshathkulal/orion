@@ -24,11 +24,10 @@ const LoginPage = () => {
 
   // Redirect if already signed in
   useEffect(() => {
-    if (authLoaded && isSignedIn && user) {
-      saveUserToDatabase();
+    if (authLoaded && isSignedIn) {
       router.replace('/');
     }
-  }, [authLoaded, isSignedIn, router, user]);
+  }, [authLoaded, isSignedIn, router]);
 
   if (!isLoaded || !authLoaded) {
     return null;
@@ -37,35 +36,6 @@ const LoginPage = () => {
   interface SignInResult {
     status: 'needs_first_factor' | string | null;
   }
-
-  const saveUserToDatabase = async () => {
-    if (!user) return;
-    
-    try {
-      // Get current user data from Clerk
-      const userData = {
-        clerkId: user.id,
-        email: user.primaryEmailAddress?.emailAddress,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        imageUrl: user.imageUrl,
-      };
-
-      const response = await fetch('/api/user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
-  
-      if (!response.ok) {
-        console.error('Failed to save user data');
-      }
-    } catch (error) {
-      console.error('Error saving user data:', error);
-    }
-  };
 
   const handleEmailSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -103,7 +73,6 @@ const LoginPage = () => {
 
       if (result.status === "complete") {
         // Redirect the user to home page after successful verification
-        await saveUserToDatabase();
         router.replace("/");
       } else {
         setError("Verification failed. Please try again.");
