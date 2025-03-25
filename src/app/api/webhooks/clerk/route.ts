@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   const wh = new Webhook(SIGNING_SECRET)
 
   // Get headers
-  const headerPayload = headers()
+  const headerPayload = await headers()
   const svix_id = headerPayload.get('svix-id')
   const svix_timestamp = headerPayload.get('svix-timestamp')
   const svix_signature = headerPayload.get('svix-signature')
@@ -44,7 +44,10 @@ export async function POST(req: Request) {
   }
 
   // Extract user data
-  const { id, email_addresses, first_name, last_name, profile_image_url } = evt.data
+  if (!('email_addresses' in evt.data)) {
+    return new Response('Error: Unexpected webhook data format', { status: 400 })
+  }
+  const { id, email_addresses, first_name, last_name, image_url } = evt.data
   const eventType = evt.type
 
   try {
@@ -52,18 +55,18 @@ export async function POST(req: Request) {
       case 'user.created':
         await handleUserCreated(id, {
           email: email_addresses[0]?.email_address,
-          firstName: first_name,
-          lastName: last_name,
-          imageUrl: profile_image_url
+          firstName: first_name ?? undefined,
+          lastName: last_name ?? undefined,
+          imageUrl: image_url ?? undefined
         })
         break
       
       case 'user.updated':
         await handleUserUpdated(id, {
           email: email_addresses[0]?.email_address,
-          firstName: first_name,
-          lastName: last_name,
-          imageUrl: profile_image_url
+          firstName: first_name ?? undefined,
+          lastName: last_name ?? undefined,
+          imageUrl: image_url ?? undefined
         })
         break
       
@@ -96,7 +99,7 @@ async function handleUserCreated(clerkId: string, userData: {
     await prisma.user.create({
       data: {
         clerkId,
-        email: userData.email,
+        email: userData.email ?? '',
         firstName: userData.firstName,
         lastName: userData.lastName,
         profileImageUrl: userData.imageUrl

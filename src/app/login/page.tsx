@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useSignIn, useAuth, useUser } from "@clerk/nextjs";
+import { useSignIn, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 const LoginPage = () => {
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const { isLoaded, signIn } = useSignIn();
-  const { user } = useUser();
+  // const { user } = useUser();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
