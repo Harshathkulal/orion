@@ -70,8 +70,17 @@ export default function ChatPage() {
         }),
       });
 
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Parse error response if not OK
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch {
+          // If JSON parsing fails, use default error message
+        }
+        throw new Error(errorMessage);
+      }
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error("ReadableStream not supported");
@@ -110,13 +119,21 @@ export default function ChatPage() {
       const errorMsg =
         err instanceof Error && err.name === "AbortError"
           ? "Response was stopped."
+          : err instanceof Error
+          ? err.message
           : "Failed to get response.";
-      setError(errorMsg);
 
-      setMessages((prev: Message[]) => [
-        ...prev,
-        { role: "model", content: currentResponse || errorMsg },
-      ]);
+      // Update the last message (model message) with the error
+      setMessages((prev: Message[]) => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = {
+          role: "model",
+          content: errorMsg,
+        };
+        return newMessages;
+      });
+
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
