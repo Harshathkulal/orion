@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const identifier = createHash("sha256").update(clientIp).digest("hex");
 
     try {
-      await rateLimit.check(identifier, 1, 60000); // 10 requests per minute
+      await rateLimit.check(identifier, 10, 60000); // 10 requests per minute
     } catch (error) {
       logger.error("Rate limit exceeded", error as Record<string, unknown>);
       return new NextResponse(

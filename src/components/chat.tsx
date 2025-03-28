@@ -44,10 +44,11 @@ export default function ChatPage() {
     if (!trimmedQuestion) return;
 
     // Add user's message immediately
-    setMessages((prev: Message[]) => [
-      ...prev,
-      { role: "user", content: trimmedQuestion },
-    ]);
+    const userMessage: Message = { 
+      role: "user", 
+      content: trimmedQuestion 
+    };
+    setMessages((prev: Message[]) => [...prev, userMessage]);
     setInitial(false);
     setLoading(true);
     setError(null);
@@ -58,7 +59,18 @@ export default function ChatPage() {
     const signal = abortControllerRef.current.signal;
 
     try {
-      const conversationHistory = messages.length > 0 ? messages : [];
+      // Prepare conversation history, EXCLUDING error messages
+      const conversationHistory = messages
+        .filter(msg => 
+          // Keep only non-error user and model messages
+          msg.role === "user" || 
+          (msg.role === "model" && !msg.isError)
+        )
+        .slice(-5) // Limit to last 5 messages
+        .map(msg => ({
+          ...msg,
+          content: msg.content.slice(0, 500) // Truncate content
+        }));
 
       const response = await fetch(API_ENDPOINT, {
         method: "POST",
@@ -123,16 +135,17 @@ export default function ChatPage() {
           ? err.message
           : "Failed to get response.";
 
-      // Update the last message (model message) with the error
-      setMessages((prev: Message[]) => {
-        const newMessages = [...prev];
-        newMessages[newMessages.length - 1] = {
-          role: "model",
-          content: errorMsg,
-        };
-        return newMessages;
-      });
+      // Add error message as a model message
+      const errorMessage: Message = {
+        role: "model",
+        content: `Error: ${errorMsg}`,
+        isError: true
+      };
 
+      // Update messages with error message
+      setMessages((prev: Message[]) => [...prev, errorMessage]);
+
+      // Set error state for immediate display
       setError(errorMsg);
     } finally {
       setLoading(false);
@@ -142,6 +155,15 @@ export default function ChatPage() {
   const handleStop = () => {
     cleanup();
     setLoading(false);
+    
+    // Add stop message to conversation
+    const stopMessage: Message = {
+      role: "model",
+      content: "Response was stopped.",
+      isError: true
+    };
+    setMessages((prev: Message[]) => [...prev, stopMessage]);
+    
     setError("Response was stopped.");
   };
 
