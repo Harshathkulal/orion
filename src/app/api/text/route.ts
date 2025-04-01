@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     // Prepare Conversation Context with Limit
     const limitedHistory = conversationHistory
-      .slice(-5) // Limit conversation history
+      .slice(-4) // Limit conversation history
       .map((msg: Message) => ({
         role: msg.role,
         parts: [{ text: msg.content.slice(0, 500) }], // Truncate individual message length
