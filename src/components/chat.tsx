@@ -20,6 +20,9 @@ export default function ChatPage() {
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  
+  // Store valid conversation history separately from UI messages
+  const [conversationHistory, setConversationHistory] = useState<Message[]>([]);
 
   // Cleanup function for aborting previous requests
   const cleanup = useCallback(() => {
@@ -43,15 +46,14 @@ export default function ChatPage() {
     const trimmedQuestion = question.trim();
     if (!trimmedQuestion) return;
 
-    // Add user's message immediately
-    const userMessage: Message = { 
-      role: "user", 
-      content: trimmedQuestion 
-    };
+    // Reset error state when user sends a new message
+    setError(null);
+    
+    // Add user's message immediately to UI
+    const userMessage: Message = { role: "user", content: trimmedQuestion };
     setMessages((prev: Message[]) => [...prev, userMessage]);
     setInitial(false);
     setLoading(true);
-    setError(null);
     setQuestion("");
 
     let currentResponse = "";
@@ -59,19 +61,6 @@ export default function ChatPage() {
     const signal = abortControllerRef.current.signal;
 
     try {
-      // Prepare conversation history, EXCLUDING error messages
-      const conversationHistory = messages
-        .filter(msg => 
-          // Keep only non-error user and model messages
-          msg.role === "user" || 
-          (msg.role === "model" && !msg.isError)
-        )
-        .slice(-5) // Limit to last 5 messages
-        .map(msg => ({
-          ...msg,
-          content: msg.content.slice(0, 500) // Truncate content
-        }));
-
       const response = await fetch(API_ENDPOINT, {
         method: "POST",
         signal,
@@ -82,7 +71,6 @@ export default function ChatPage() {
         }),
       });
 
-      // Parse error response if not OK
       if (!response.ok) {
         let errorMessage = `HTTP error! status: ${response.status}`;
         try {
@@ -99,7 +87,7 @@ export default function ChatPage() {
 
       const decoder = new TextDecoder();
 
-      // Add assistant message placeholder
+      // Add assistant message placeholder to UI
       setMessages((prev: Message[]) => [
         ...prev,
         { role: "model", content: "" },
@@ -122,6 +110,10 @@ export default function ChatPage() {
         });
       }
 
+      // Only add successful messages to conversation history
+      const modelMessage: Message = { role: "model", content: currentResponse };
+      setConversationHistory(prev => [...prev, userMessage, modelMessage]);
+
       // Only increment message count for non-signed-in users
       if (!isSignedIn) {
         setMessageCount((prev: number) => prev + 1);
@@ -135,15 +127,11 @@ export default function ChatPage() {
           ? err.message
           : "Failed to get response.";
 
-      // Add error message as a model message
-      const errorMessage: Message = {
-        role: "model",
-        content: `Error: ${errorMsg}`,
-        isError: true
-      };
-
-      // Update messages with error message
-      setMessages((prev: Message[]) => [...prev, errorMessage]);
+      // Add error message to UI only
+      setMessages((prev: Message[]) => [
+        ...prev,
+        { role: "model", content: `Error: ${errorMsg}`, isError: true },
+      ]);
 
       // Set error state for immediate display
       setError(errorMsg);
@@ -156,13 +144,11 @@ export default function ChatPage() {
     cleanup();
     setLoading(false);
     
-    // Add stop message to conversation
-    const stopMessage: Message = {
-      role: "model",
-      content: "Response was stopped.",
-      isError: true
-    };
-    setMessages((prev: Message[]) => [...prev, stopMessage]);
+    // Add stop message to UI only
+    setMessages((prev: Message[]) => [
+      ...prev,
+      { role: "model", content: "Response was stopped.", isError: true },
+    ]);
     
     setError("Response was stopped.");
   };
