@@ -20,9 +20,24 @@ export default function ChatPage() {
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  
+
   // Store valid conversation history separately from UI messages
   const [conversationHistory, setConversationHistory] = useState<Message[]>([]);
+
+  // Unified error handling function
+  const handleError = useCallback((errorMessage: string) => {
+    // Set error state
+    setError(errorMessage);
+
+    // Add error message to the conversation
+    setMessages((prev: Message[]) => [
+      ...prev,
+      { role: "model", content: errorMessage, isError: true },
+    ]);
+
+    // End loading state
+    setLoading(false);
+  }, []);
 
   // Cleanup function for aborting previous requests
   const cleanup = useCallback(() => {
@@ -48,7 +63,7 @@ export default function ChatPage() {
 
     // Reset error state when user sends a new message
     setError(null);
-    
+
     // Add user's message immediately to UI
     const userMessage: Message = { role: "user", content: trimmedQuestion };
     setMessages((prev: Message[]) => [...prev, userMessage]);
@@ -72,10 +87,12 @@ export default function ChatPage() {
       });
 
       if (!response.ok) {
-        let errorMessage = `HTTP error! status: ${response.status}`;
+        let errorMessage = "Something went wrong. Please try again.";
         try {
           const errorData = await response.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
         } catch {
           // If JSON parsing fails, use default error message
         }
@@ -83,7 +100,8 @@ export default function ChatPage() {
       }
 
       const reader = response.body?.getReader();
-      if (!reader) throw new Error("ReadableStream not supported");
+      if (!reader)
+        throw new Error("Your browser doesn't support streaming responses.");
 
       const decoder = new TextDecoder();
 
@@ -112,7 +130,7 @@ export default function ChatPage() {
 
       // Only add successful messages to conversation history
       const modelMessage: Message = { role: "model", content: currentResponse };
-      setConversationHistory(prev => [...prev, userMessage, modelMessage]);
+      setConversationHistory((prev) => [...prev, userMessage, modelMessage]);
 
       // Only increment message count for non-signed-in users
       if (!isSignedIn) {
@@ -120,21 +138,15 @@ export default function ChatPage() {
         if (messageCount + 1 >= MAX_FREE_MESSAGES) setShowLoginDialog(true);
       }
     } catch (err: unknown) {
+      // Unified error handling
       const errorMsg =
         err instanceof Error && err.name === "AbortError"
           ? "Response was stopped."
           : err instanceof Error
           ? err.message
-          : "Failed to get response.";
+          : "Unable to process your request. Please try again.";
 
-      // Add error message to UI only
-      setMessages((prev: Message[]) => [
-        ...prev,
-        { role: "model", content: `Error: ${errorMsg}`, isError: true },
-      ]);
-
-      // Set error state for immediate display
-      setError(errorMsg);
+      handleError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -142,15 +154,7 @@ export default function ChatPage() {
 
   const handleStop = () => {
     cleanup();
-    setLoading(false);
-    
-    // Add stop message to UI only
-    setMessages((prev: Message[]) => [
-      ...prev,
-      { role: "model", content: "Response was stopped.", isError: true },
-    ]);
-    
-    setError("Response was stopped.");
+    handleError("Response was stopped.");
   };
 
   return (
