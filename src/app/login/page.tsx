@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect } from "react";
 import { useSignIn, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ const LoginPage = () => {
   // Redirect if already signed in
   useEffect(() => {
     if (authLoaded && isSignedIn) {
-      router.replace('/');
+      router.replace("/");
     }
   }, [authLoaded, isSignedIn, router]);
 
@@ -34,7 +34,7 @@ const LoginPage = () => {
   }
 
   interface SignInResult {
-    status: 'needs_first_factor' | string | null;
+    status: "needs_first_factor" | string | null;
   }
 
   const handleEmailSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -43,12 +43,10 @@ const LoginPage = () => {
     setError("");
 
     try {
-      // Initiate the email verification flow
       const result: SignInResult = await signIn.create({
         identifier: email,
       });
 
-      // Clerk will send a verification code to the user's email
       if (result.status === "needs_first_factor") {
         setShowVerificationInput(true);
       }
@@ -72,8 +70,7 @@ const LoginPage = () => {
       });
 
       if (result.status === "complete") {
-        // Redirect the user to home page after successful verification
-        router.replace("/");
+        router.replace("/auth/callback");
       } else {
         setError("Verification failed. Please try again.");
       }
@@ -89,8 +86,8 @@ const LoginPage = () => {
     try {
       await signIn.authenticateWithRedirect({
         strategy: "oauth_google",
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/",
+        redirectUrl: "/auth/callback",
+        redirectUrlComplete: "/auth/callback",
       });
     } catch (err: unknown) {
       console.error("Error signing in with Google:", err);
