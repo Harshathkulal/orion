@@ -22,24 +22,28 @@ model User {
   firstName       String?
   lastName        String?
   profileImageUrl String?
-  profile         Profile?
-  posts           Post[]
+  prompt          Prompt[]
+  image           Image[]
 }
 
-model Profile {
+model Prompt {
   id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id])
+  prompt    String
+  response  String?
+  url       String?
+  seed      Int?
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model Post {
+model Image {
   id        String   @id @default(cuid())
   prompt    String
   url       String
   seed      Int
-  User      User     @relation(fields: [userId], references: [id])
+  user      User?     @relation(fields: [userId], references: [id])
   userId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

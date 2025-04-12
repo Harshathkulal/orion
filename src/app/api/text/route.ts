@@ -6,6 +6,7 @@ import { ipFilter } from "@/lib/ip-filter";
 import { validateInput } from "@/lib/input-validation";
 import { logger } from "@/lib/logger";
 import { createHash } from "crypto";
+import { db } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   try {
@@ -91,6 +92,8 @@ export async function POST(req: NextRequest) {
       { role: "user", parts: [{ text: question }] },
     ];
 
+    let responseText = "";
+
     // Streaming Response with Timeout
     const stream = new ReadableStream({
       async start(controller) {
@@ -103,11 +106,25 @@ export async function POST(req: NextRequest) {
           const result = await chat.sendMessageStream(question);
 
           for await (const chunk of result.stream) {
-            controller.enqueue(chunk.text());
+            const text = chunk.text();
+            responseText += text;
+            controller.enqueue(text);
           }
 
           clearTimeout(timeoutId);
           controller.close();
+
+          db.prompt
+            .create({
+              data: {
+                prompt: question,
+                response: responseText,
+                // userId: "",
+              },
+            })
+            .catch((err: Record<string, unknown> | undefined) => {
+              logger.error("Failed to save prompt to DB:", err);
+            });
         } catch (error) {
           clearTimeout(timeoutId);
           logger.error("AI Generation Error", error as Record<string, unknown>);
