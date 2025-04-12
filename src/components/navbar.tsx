@@ -6,11 +6,14 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import {
   LogIn,
+  LogOut,
   MessageSquare,
   Image as ImageIcon,
   Loader2,
+  Settings,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { Button } from "./ui/button";
 
 export default function Navbar() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -91,7 +94,11 @@ export default function Navbar() {
                   className="flex items-center focus:outline-none"
                 >
                   <Image
-                    src={user?.imageUrl || "/default-avatar.png"}
+                    src={
+                      user?.externalAccounts[0].imageUrl ||
+                      user?.imageUrl ||
+                      "avatar"
+                    }
                     alt="Profile"
                     width={32}
                     height={32}
@@ -100,13 +107,48 @@ export default function Navbar() {
                 </button>
 
                 {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-background border border-gray-200 rounded-md shadow-lg py-1">
-                    <button
-                      onClick={handleSignOut}
-                      className="w-full text-left px-4 py-2 text-sm focus:outline-none hover:bg-muted"
-                    >
-                      Sign out
-                    </button>
+                  <div className="absolute right-0 w-52 mt-2 bg-background border border-gray-200 rounded-md shadow-lg py-1">
+                    <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-200">
+                      <Image
+                        src={
+                          user?.externalAccounts[0].imageUrl ||
+                          user?.imageUrl ||
+                          "avatar"
+                        }
+                        alt="Profile"
+                        width={20}
+                        height={20}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold">
+                          {user?.firstName}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {user?.emailAddresses[0].emailAddress}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1 px-2 py-1">
+                      <Button
+                        onClick={() => {}}
+                        variant="outline"
+                        className="px-1 py-0.5 text-xs h-6 flex items-center gap-1"
+                      >
+                        <Settings size={12} />
+                        <span>Manage account</span>
+                      </Button>
+
+                      <Button
+                        onClick={handleSignOut}
+                        variant="outline"
+                        className="px-1 py-0.5 text-xs h-6 flex items-center gap-1"
+                      >
+                        <LogOut size={12} />
+                        <span>Sign out</span>
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
