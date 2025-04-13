@@ -49,8 +49,8 @@ export async function POST(req: NextRequest) {
     const validationResult = validateInput({
       question,
       conversationHistory,
-      maxLength: 1000, // Prevent oversized payloads
-      allowedCharacters: /^[a-zA-Z0-9\s.,!?()-]+$/, // Basic sanitization
+      maxLength: 1000,
+      allowedCharacters: /^[a-zA-Z0-9\s.,!?()-]+$/,
     });
 
     if (!validationResult.valid) {
@@ -73,18 +73,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Initialize Google AI with Secure Configuration
+    // Initialize Google AI
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
     });
 
-    // Prepare Conversation Context with Limit
+    // Prepare Conversation Context
     const limitedHistory = conversationHistory
-      .slice(-4) // Limit conversation history
+      .slice(-4)
       .map((msg: Message) => ({
         role: msg.role,
-        parts: [{ text: msg.content.slice(0, 500) }], // Truncate individual message length
+        parts: [{ text: msg.content.slice(0, 500) }],
       }));
 
     const fullConversation = [
@@ -94,46 +94,73 @@ export async function POST(req: NextRequest) {
 
     let responseText = "";
 
-    // Streaming Response with Timeout
+    // Use a shared abort signal
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
     const stream = new ReadableStream({
       async start(controller) {
-        const timeoutId = setTimeout(() => {
-          controller.error(new Error("Request timed out"));
-        }, 30000); // 30-second timeout
-
         try {
           const chat = model.startChat({ history: fullConversation });
           const result = await chat.sendMessageStream(question);
 
-          for await (const chunk of result.stream) {
-            const text = chunk.text();
-            responseText += text;
-            controller.enqueue(text);
+          // Check if already aborted
+          if (signal.aborted) {
+            controller.close();
+            return;
           }
 
-          clearTimeout(timeoutId);
-          controller.close();
+          for await (const chunk of result.stream) {
+            // Check if aborted before processing each chunk
+            if (signal.aborted) {
+              break;
+            }
 
-          db.prompt
-            .create({
-              data: {
-                prompt: question,
-                response: responseText,
-                // userId: "",
-              },
-            })
-            .catch((err: Record<string, unknown> | undefined) => {
-              logger.error("Failed to save prompt to DB:", err);
-            });
+            const text = chunk.text();
+            responseText += text;
+
+            try {
+              controller.enqueue(text);
+            } catch (error) {
+              // If enqueue fails, just break the loop
+              console.log("Enqueue failed, likely due to closed stream", error);
+              break;
+            }
+          }
+
+          // Only save to DB and close controller if not aborted
+          if (!signal.aborted) {
+            // Save response
+            db.prompt
+              .create({
+                data: {
+                  prompt: question,
+                  response: responseText,
+                },
+              })
+              .catch((err) => {
+                console.error("DB save error:", err);
+              });
+
+            // Close controller
+            controller.close();
+          }
         } catch (error) {
-          clearTimeout(timeoutId);
-          logger.error("AI Generation Error", error as Record<string, unknown>);
-          controller.error(error);
+          console.error("AI error:", error);
+
+          // If not already aborted, close the controller
+          if (!signal.aborted) {
+            controller.close();
+          }
         }
+      },
+
+      cancel() {
+        console.log("Stream was stopped by client");
+        abortController.abort();
       },
     });
 
-    // Enhanced Response Headers for Security
     return new NextResponse(stream, {
       headers: {
         "Content-Type": "text/plain",
