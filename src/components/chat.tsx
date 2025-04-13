@@ -154,7 +154,6 @@ export default function ChatPage() {
 
   const handleStop = () => {
     cleanup();
-    handleError("Response was stopped.");
   };
 
   return (

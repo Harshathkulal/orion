@@ -79,6 +79,20 @@ export async function POST(req: NextRequest) {
       model: "gemini-1.5-flash",
     });
 
+    // Simple test to check API key validity
+    try {
+      await model.generateContent("test");
+    } catch (apiError) {
+      // Return error response if API key is invalid
+      logger.error(
+        "API key validation failed:",
+        apiError as Record<string, unknown>
+      );
+      return new NextResponse(JSON.stringify({ message: "Server failed" }), {
+        status: 500,
+      });
+    }
+
     // Prepare Conversation Context
     const limitedHistory = conversationHistory
       .slice(-4)
@@ -176,9 +190,8 @@ export async function POST(req: NextRequest) {
     });
   } catch (globalError) {
     logger.error("Global API Error", globalError as Record<string, unknown>);
-    return new NextResponse(
-      JSON.stringify({ message: "Unexpected server error" }),
-      { status: 500 }
-    );
+    return new NextResponse(JSON.stringify({ message: "Server failed" }), {
+      status: 500,
+    });
   }
 }
