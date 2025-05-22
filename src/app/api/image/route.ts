@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/prisma";
+import { db } from "@/db/db";
+import { images } from "@/db/schema";
+import cuid from "cuid";
 
 export async function POST(request: NextRequest) {
   const { prompt }: { prompt: string } = await request.json();
@@ -15,18 +17,18 @@ export async function POST(request: NextRequest) {
 
   await fetch(imageURL);
 
-  db.image
-    .create({
-      data: {
-        prompt,
-        url: imageURL,
-        seed: randomSeed,
-        // userId: ""
-      },
-    })
-    .catch((err) => {
-      console.error("Failed to save image to DB:", err);
+  try {
+    await db.insert(images).values({
+      id: cuid(),
+      prompt,
+      url: imageURL,
+      seed: randomSeed,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
+  } catch (err) {
+    console.error("Failed to save image to DB:", err);
+  }
 
   return NextResponse.json({ url: imageURL });
 }

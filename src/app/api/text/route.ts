@@ -6,7 +6,9 @@ import { ipFilter } from "@/lib/ip-filter";
 import { validateInput } from "@/lib/input-validation";
 import { logger } from "@/lib/logger";
 import { createHash } from "crypto";
-import { db } from "@/lib/prisma";
+import { db } from "@/db/db";
+import { prompts } from "@/db/schema";
+import cuid from "cuid";
 
 export async function POST(req: NextRequest) {
   try {
@@ -144,13 +146,14 @@ export async function POST(req: NextRequest) {
 
           // Only save to DB and close controller if not aborted
           if (!signal.aborted) {
-            // Save response
-            db.prompt
-              .create({
-                data: {
-                  prompt: question,
-                  response: responseText,
-                },
+            await db
+              .insert(prompts)
+              .values({
+                id: cuid(),
+                prompt: question,
+                response: responseText,
+                createdAt: new Date(),
+                updatedAt: new Date(),
               })
               .catch((err) => {
                 console.error("DB save error:", err);
