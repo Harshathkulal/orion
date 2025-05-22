@@ -1,52 +1,55 @@
-// app/auth/callback/page.tsx
-import { db } from "@/lib/prisma";
-import { currentUser } from "@clerk/nextjs/server";
+import { db } from "@/db/db";
+import { users, sessions } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { currentUser, auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import cuid from "cuid";
 
 export default async function AuthCallbackPage() {
   try {
     // Get the authenticated user
     const user = await currentUser();
+    const { sessionId } = await auth();
 
     if (!user?.id || !user.emailAddresses[0]?.emailAddress) {
-      console.log("No user ID or email found, redirecting to login");
       return redirect("/login");
     }
 
-    // if user exists in your database
-    const existingUser = await db.user.findUnique({
-      where: {
-        clerkId: user.id,
-      },
-    });
+    const email = user.emailAddresses[0].emailAddress;
 
-    // Create new user
+    const existingUser = (
+      await db.select().from(users).where(eq(users.clerkId, user.id))
+    )[0];
+
+    let userId: string;
+
     if (!existingUser) {
-      console.log("Creating new user in database");
-      try {
-        await db.user.create({
-          data: {
-            clerkId: user.id,
-            email: user.emailAddresses[0].emailAddress,
-            firstName: user.firstName ?? null,
-            lastName: user.lastName ?? null,
-            profileImageUrl: user.externalAccounts[0].imageUrl ?? null,
-          },
-        });
-        console.log("User created successfully");
-      } catch (dbError) {
-        console.error("Database error:", dbError);
-        // function to handle specific database errors
-        return redirect("/login?error=database");
-      }
+      const newId = cuid();
+      await db.insert(users).values({
+        id: newId,
+        clerkId: user.id,
+        email,
+        firstName: user.firstName ?? null,
+        lastName: user.lastName ?? null,
+        profileImageUrl: user.imageUrl ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      userId = newId;
     } else {
-      console.log("User already exists in database");
+      userId = existingUser.id;
     }
 
-    // Redirect to home page after successful processing
+    // Save session entry
+    await db.insert(sessions).values({
+      id: cuid(),
+      userId,
+      clerkSessionId: sessionId ?? null,
+    });
+
     return redirect("/");
   } catch (error) {
-    console.error("Error in auth callback:", error);
+    console.error("Auth callback error:", error);
     return redirect("/login?error=callback");
   }
 }
