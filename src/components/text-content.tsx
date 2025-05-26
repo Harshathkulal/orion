@@ -18,6 +18,15 @@ const WelcomeMessage = () => (
   </div>
 );
 
+const RAGWelcomeMessage = () => (
+  <div className="h-full flex items-center justify-center text-center p-4">
+    <div>
+      <h1 className="text-2xl font-semibold mb-2">RAG Chat</h1>
+      <p className="text-primary/60">Ask questions about your documents!</p>
+    </div>
+  </div>
+);
+
 const LoadingIndicator = () => (
   <div className="flex items-center gap-2 text-muted-foreground text-sm mt-4 ">
     <Loader className="animate-spin" size={16} />
@@ -123,6 +132,7 @@ export const TextContent: React.FC<TextContentProps> = ({
   loading,
   initial,
   error,
+  rag,
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -140,7 +150,7 @@ export const TextContent: React.FC<TextContentProps> = ({
     >
       <div className="max-w-4xl mx-auto px-4 py-16">
         {initial && !loading ? (
-          <WelcomeMessage />
+          rag ? <RAGWelcomeMessage /> : <WelcomeMessage />
         ) : (
           messages.map((message, index) => (
             <MessageBubble key={index} message={message} />

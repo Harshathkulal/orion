@@ -11,6 +11,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Settings,
+  FileUp,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "./ui/button";
@@ -78,6 +79,17 @@ export default function Navbar() {
             >
               <ImageIcon size={18} />
               <span>Image</span>
+            </Link>
+             <Link
+              href="/rag"
+              className={`flex items-center gap-2 px-2 py-1 rounded-md ${
+                pathname === "/rag"
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted"
+              }`}
+            >
+              <FileUp size={18} />
+              <span>RAG</span>
             </Link>
           </nav>
 

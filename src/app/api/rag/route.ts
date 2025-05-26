@@ -9,7 +9,7 @@ const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 const embedder = new GoogleGenerativeAIEmbeddings({
   model: "text-embedding-004",
-  apiKey: process.env.GEMINI_API_KEY!,
+  apiKey: process.env.GEMINI_API_KEY2!,
 });
 
 export async function POST(req: NextRequest) {

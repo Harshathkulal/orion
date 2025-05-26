@@ -7,6 +7,8 @@ const isPublicRoute = createRouteMatcher([
   "/login",
   "/api/text",
   "/api/image",
+  "/rag",
+  "/api/rag",
   "/auth/callback",
 ]);
 
