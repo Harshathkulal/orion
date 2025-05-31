@@ -87,8 +87,8 @@ const LoginPage = () => {
     try {
       await signIn.authenticateWithRedirect({
         strategy: "oauth_google",
-        redirectUrl: "/auth/callback",
-        redirectUrlComplete: "/auth/callback",
+        redirectUrl: "/callback",
+        redirectUrlComplete: "/callback",
       });
     } catch (err: unknown) {
       console.error("Error signing in with Google:", err);

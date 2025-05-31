@@ -39,8 +39,8 @@ export default function TextInput({
   };
 
   return (
-    <div className="fixed bottom-0 w-full bg-background z-40">
-      <div className="max-w-4xl mx-auto p-4">
+    <div className="sticky bottom-0 w-full bg-background z-40">
+      <div className="w-full p-4">
         <form onSubmit={onSubmit} className="relative">
           <div className="relative">
             <Textarea
