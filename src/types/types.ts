@@ -3,6 +3,7 @@ export interface TextContentProps {
   loading: boolean;
   initial: boolean;
   error: string | null;
+  rag?: string;
 }
 
 export interface Message {

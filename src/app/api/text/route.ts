@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     if (!apiKey) {
       logger.error("Missing Gemini API key");
       return new NextResponse(
-        JSON.stringify({ message: "Server configuration error" }),
+        JSON.stringify({ error: "Server configuration error: Missing API key" }),
         { status: 500 }
       );
     }
@@ -83,16 +83,20 @@ export async function POST(req: NextRequest) {
 
     // Simple test to check API key validity
     try {
-      await model.generateContent("test");
+      const testResult = await model.generateContent("test");
+      if (!testResult || !testResult.response) {
+        throw new Error("Invalid API response");
+      }
     } catch (apiError) {
       // Return error response if API key is invalid
-      logger.error(
-        "API key validation failed:",
-        apiError as Record<string, unknown>
+      logger.error("API key validation failed:", { error: apiError instanceof Error ? apiError.message : String(apiError) });
+      return new NextResponse(
+        JSON.stringify({ 
+          error: "API key validation failed", 
+          details: apiError instanceof Error ? apiError.message : "Unknown error"
+        }),
+        { status: 500 }
       );
-      return new NextResponse(JSON.stringify({ message: "Server failed" }), {
-        status: 500,
-      });
     }
 
     // Prepare Conversation Context
@@ -126,44 +130,65 @@ export async function POST(req: NextRequest) {
             return;
           }
 
+          if (!result || !result.stream) {
+            throw new Error("Invalid response from AI model");
+          }
+
           for await (const chunk of result.stream) {
             // Check if aborted before processing each chunk
             if (signal.aborted) {
               break;
             }
 
+            if (!chunk || !chunk.text) {
+              console.error("Invalid chunk received:", chunk);
+              continue;
+            }
+
             const text = chunk.text();
             responseText += text;
 
             try {
-              controller.enqueue(text);
+              // Encode the text to ensure proper streaming
+              const encoder = new TextEncoder();
+              const encodedText = encoder.encode(text);
+              controller.enqueue(encodedText);
             } catch (error) {
-              // If enqueue fails, just break the loop
-              console.log("Enqueue failed, likely due to closed stream", error);
+              console.error("Enqueue failed:", error);
               break;
             }
           }
 
           // Only save to DB and close controller if not aborted
           if (!signal.aborted) {
-            await db
-              .insert(prompts)
-              .values({
-                id: cuid(),
-                prompt: question,
-                response: responseText,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              })
-              .catch((err) => {
-                console.error("DB save error:", err);
-              });
+            try {
+              await db
+                .insert(prompts)
+                .values({
+                  id: cuid(),
+                  prompt: question,
+                  response: responseText,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                });
+            } catch (err) {
+              console.error("DB save error:", err);
+            }
 
             // Close controller
             controller.close();
           }
         } catch (error) {
           console.error("AI error:", error);
+          
+          // Send error message to client
+          try {
+            const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+            const encoder = new TextEncoder();
+            controller.enqueue(encoder.encode(JSON.stringify({ error: errorMessage })));
+          } catch (e) {
+            console.error("Failed to send error message:", e);
+          }
 
           // If not already aborted, close the controller
           if (!signal.aborted) {
@@ -180,15 +205,15 @@ export async function POST(req: NextRequest) {
 
     return new NextResponse(stream, {
       headers: {
-        "Content-Type": "text/plain",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
         "Referrer-Policy": "no-referrer",
         Connection: "keep-alive",
+        "Transfer-Encoding": "chunked",
       },
     });
   } catch (globalError) {

@@ -6,10 +6,19 @@ import ImageContent from "./image-content";
 import LoginDialog from "./login-dialog";
 import { useAuth } from "@clerk/nextjs";
 
-const MAX_FREE_MESSAGES = 3;
-const API_ENDPOINT = "/api/image";
+interface BaseImageProps {
+  apiEndpoint: string;
+  maxFreeMessages?: number;
+  additionalProps?: Record<string, unknown>;
+  onImageGenerated?: (imageUrl: string) => void;
+}
 
-export default function ImagePage() {
+export default function BaseImage({
+  apiEndpoint,
+  maxFreeMessages = 3,
+  additionalProps = {},
+  onImageGenerated,
+}: BaseImageProps) {
   const { isSignedIn } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,7 +29,6 @@ export default function ImagePage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Cleanup function for aborting previous requests
   const cleanup = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -39,8 +47,7 @@ export default function ImagePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Only check message limit for users who aren't signed in
-    if (!isSignedIn && messageCount >= MAX_FREE_MESSAGES) {
+    if (!isSignedIn && messageCount >= maxFreeMessages) {
       setShowLoginDialog(true);
       return;
     }
@@ -54,17 +61,19 @@ export default function ImagePage() {
     setError(null);
     setImageUrl(null);
 
-    // Create new AbortController for this request
     cleanup();
     abortControllerRef.current = new AbortController();
 
     try {
-      const response = await fetch(API_ENDPOINT, {
+      const response = await fetch(apiEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({
+          prompt,
+          ...additionalProps,
+        }),
         signal: abortControllerRef.current.signal,
       });
 
@@ -75,7 +84,14 @@ export default function ImagePage() {
 
       const data = await response.json();
       setImageUrl(data.url);
-      setMessageCount((prev) => prev + 1);
+      onImageGenerated?.(data.url);
+      
+      if (!isSignedIn) {
+        setMessageCount((prev) => prev + 1);
+        if (messageCount + 1 >= maxFreeMessages) {
+          setShowLoginDialog(true);
+        }
+      }
     } catch (error) {
       if (error instanceof Error && error.name !== "AbortError") {
         setError(
@@ -90,7 +106,7 @@ export default function ImagePage() {
   };
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 max-w-4xl mx-auto w-full">
       <ImageContent
         initial={initial}
         loading={loading}
@@ -107,4 +123,4 @@ export default function ImagePage() {
       <LoginDialog open={showLoginDialog} onOpenChange={setShowLoginDialog} />
     </div>
   );
-}
+} 

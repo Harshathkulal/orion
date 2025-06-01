@@ -4,14 +4,7 @@ import Link from "next/link";
 import { useAuth, useUser, useClerk } from "@clerk/nextjs";
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import {
-  LogIn,
-  LogOut,
-  MessageSquare,
-  Image as ImageIcon,
-  Loader2,
-  Settings,
-} from "lucide-react";
+import { LogIn, LogOut, Loader2, Settings, Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "./ui/button";
 
@@ -20,7 +13,9 @@ export default function Navbar() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
   // Close dropdown when clicking outside
@@ -31,6 +26,12 @@ export default function Navbar() {
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setDropdownOpen(false);
+      }
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target as Node)
+      ) {
+        setMobileMenuOpen(false);
       }
     }
 
@@ -45,43 +46,55 @@ export default function Navbar() {
     setDropdownOpen(false);
   };
 
+  const NavItems = () => (
+    <>
+      <Link
+        href="/chat"
+        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+          pathname === "/chat" ? "bg-muted text-primary" : "hover:bg-muted"
+        }`}
+      >
+        <span>Chat</span>
+      </Link>
+
+      <Link
+        href="/image"
+        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+          pathname === "/image" ? "bg-muted text-primary" : "hover:bg-muted"
+        }`}
+      >
+        <span>Image</span>
+      </Link>
+      <Link
+        href="/rag"
+        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+          pathname === "/rag" ? "bg-muted text-primary" : "hover:bg-muted"
+        }`}
+      >
+        <span>PDF Summarizer</span>
+      </Link>
+    </>
+  );
+
   return (
-    <header className="sticky top-0 z-50 w-full bg-background">
-      <div className="container flex items-center justify-between h-16 mx-auto">
+    <header className="sticky top-0 z-50 w-full border-b bg-gradient-to-br from-orange-500/10 via-transparent to-mocha-950 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-6">
-          <Link href="/" className="text-xl font-bold hover:text-gray-300 px-2">
+          <Link
+            href="/"
+            className="text-xl font-bold hover:text-primary transition-colors"
+          >
             Orion
           </Link>
         </div>
 
-        <div className="px-6 flex items-center gap-8">
-          <nav className="flex items-center gap-4">
-            <Link
-              href="/"
-              className={`flex items-center gap-2 px-2 py-1 rounded-md ${
-                pathname === "/"
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              }`}
-            >
-              <MessageSquare size={18} />
-              <span>Text</span>
-            </Link>
-
-            <Link
-              href="/image"
-              className={`flex items-center gap-2 px-2 py-1 rounded-md ${
-                pathname === "/image"
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              }`}
-            >
-              <ImageIcon size={18} />
-              <span>Image</span>
-            </Link>
+        <div className="flex items-center gap-6 md:gap-8">
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-6">
+            <NavItems />
           </nav>
 
-          <div className="w-8 h-8 flex items-center justify-center">
+          <div className="flex items-center">
             {!isLoaded ? (
               <Loader2
                 size={24}
@@ -91,7 +104,7 @@ export default function Navbar() {
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center focus:outline-none"
+                  className="flex items-center focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full"
                 >
                   <Image
                     src={
@@ -102,13 +115,13 @@ export default function Navbar() {
                     alt="Profile"
                     width={32}
                     height={32}
-                    className="w-8 h-8 rounded-full object-cover"
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/10"
                   />
                 </button>
 
                 {dropdownOpen && (
-                  <div className="absolute right-0 w-52 mt-2 bg-background border border-gray-200 rounded-md shadow-lg py-1">
-                    <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-200">
+                  <div className="absolute right-0 w-72 mt-2 bg-background border rounded-md shadow-lg py-1 ring-1 ring-black/5 focus:outline-none">
+                    <div className="flex items-center gap-3 px-4 py-3 border-b">
                       <Image
                         src={
                           user?.externalAccounts[0].imageUrl ||
@@ -116,36 +129,36 @@ export default function Navbar() {
                           "avatar"
                         }
                         alt="Profile"
-                        width={20}
-                        height={20}
-                        className="w-8 h-8 rounded-full object-cover"
+                        width={32}
+                        height={32}
+                        className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/10"
                       />
                       <div className="flex flex-col">
-                        <span className="text-sm font-semibold">
+                        <span className="text-sm font-medium">
                           {user?.firstName}
                         </span>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           {user?.emailAddresses[0].emailAddress}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-1 px-2 py-1">
+                    <div className="flex flex-col gap-1 px-2 py-2">
                       <Button
                         onClick={() => {}}
-                        variant="outline"
-                        className="px-1 py-0.5 text-xs h-6 flex items-center gap-1"
+                        variant="ghost"
+                        className="w-full justify-start text-sm h-9"
                       >
-                        <Settings size={12} />
+                        <Settings size={16} className="mr-2" />
                         <span>Manage account</span>
                       </Button>
 
                       <Button
                         onClick={handleSignOut}
-                        variant="outline"
-                        className="px-1 py-0.5 text-xs h-6 flex items-center gap-1"
+                        variant="ghost"
+                        className="w-full justify-start text-sm h-9 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
                       >
-                        <LogOut size={12} />
+                        <LogOut size={16} className="mr-2" />
                         <span>Sign out</span>
                       </Button>
                     </div>
@@ -158,8 +171,28 @@ export default function Navbar() {
               </Link>
             )}
           </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 hover:bg-muted/50 rounded-md"
+          >
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Navigation Menu */}
+      {mobileMenuOpen && (
+        <div
+          ref={mobileMenuRef}
+          className="md:hidden border-t bg-gradient-to-br from-orange-500/10 via-transparent to-mocha-950"
+        >
+          <nav className="container py-4 flex flex-col gap-3 px-4">
+            <NavItems />
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

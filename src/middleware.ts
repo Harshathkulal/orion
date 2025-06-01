@@ -4,9 +4,11 @@ import { NextResponse } from "next/server";
 const isPublicRoute = createRouteMatcher([
   "/",
   "/image",
+  "/chat",
   "/login",
   "/api/text",
   "/api/image",
+  "/api/rag",
   "/auth/callback",
 ]);
 
