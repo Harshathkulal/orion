@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import BaseChat from "@/components/base-chat";
-import Navbar from "@/components/navbar";
 import DocumentManager from "@/components/document-manager";
 
 interface Document {
@@ -55,11 +54,10 @@ export default function RagChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen">
-      <Navbar />
+    <div className="flex flex-col h-[calc(100vh-64px)]">
       <div className="flex flex-col lg:flex-row flex-1 min-h-0">
         <div className="w-full lg:w-72 border-r flex-shrink-0">
-          <div className="lg:h-[calc(100vh-64px)] overflow-y-auto">
+          <div className="h-full overflow-y-auto">
             <DocumentManager
               documents={documents}
               onDocumentSelect={setSelectedDocument}

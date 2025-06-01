@@ -116,6 +116,7 @@ export default function BaseChat({
               if (jsonResponse.error) {
                 throw new Error(jsonResponse.error);
               }
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (e) {
               // If it's not JSON or doesn't have an error, treat it as normal text
               responseText += text;
@@ -159,7 +160,7 @@ export default function BaseChat({
   };
 
   return (
-    <div className="flex flex-col h-full max-w-xl mx-auto w-full">
+    <div className="flex flex-col h-full max-w-4xl mx-auto w-full">
       <div className="flex-1">
         <TextContent
           messages={messages}

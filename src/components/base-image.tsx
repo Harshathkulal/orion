@@ -9,7 +9,7 @@ import { useAuth } from "@clerk/nextjs";
 interface BaseImageProps {
   apiEndpoint: string;
   maxFreeMessages?: number;
-  additionalProps?: Record<string, any>;
+  additionalProps?: Record<string, unknown>;
   onImageGenerated?: (imageUrl: string) => void;
 }
 
@@ -106,7 +106,7 @@ export default function BaseImage({
   };
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 max-w-4xl mx-auto w-full">
       <ImageContent
         initial={initial}
         loading={loading}

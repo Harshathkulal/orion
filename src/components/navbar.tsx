@@ -4,15 +4,7 @@ import Link from "next/link";
 import { useAuth, useUser, useClerk } from "@clerk/nextjs";
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import {
-  LogIn,
-  LogOut,
-  MessageSquare,
-  Image as ImageIcon,
-  Loader2,
-  Settings,
-  FileUp,
-} from "lucide-react";
+import { LogIn, LogOut, Loader2, Settings, Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "./ui/button";
 
@@ -21,7 +13,9 @@ export default function Navbar() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
   // Close dropdown when clicking outside
@@ -32,6 +26,12 @@ export default function Navbar() {
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setDropdownOpen(false);
+      }
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target as Node)
+      ) {
+        setMobileMenuOpen(false);
       }
     }
 
@@ -46,51 +46,52 @@ export default function Navbar() {
     setDropdownOpen(false);
   };
 
+  const NavItems = () => (
+    <>
+      <Link
+        href="/chat"
+        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+          pathname === "/chat" ? "bg-muted text-primary" : "hover:bg-muted"
+        }`}
+      >
+        <span>Chat</span>
+      </Link>
+
+      <Link
+        href="/image"
+        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+          pathname === "/image" ? "bg-muted text-primary" : "hover:bg-muted"
+        }`}
+      >
+        <span>Image</span>
+      </Link>
+      <Link
+        href="/rag"
+        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+          pathname === "/rag" ? "bg-muted text-primary" : "hover:bg-muted"
+        }`}
+      >
+        <span>PDF Summarizer</span>
+      </Link>
+    </>
+  );
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
+    <header className="sticky top-0 z-50 w-full border-b bg-gradient-to-br from-orange-500/10 via-transparent to-mocha-950 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-6">
-          <Link href="/" className="text-xl font-bold hover:text-primary transition-colors">
+          <Link
+            href="/"
+            className="text-xl font-bold hover:text-primary transition-colors"
+          >
             Orion
           </Link>
         </div>
 
-        <div className="flex items-center gap-4 md:gap-8">
-          <nav className="hidden md:flex items-center gap-4">
-            <Link
-              href="/chat"
-              className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
-                pathname === "/chat"
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              }`}
-            >
-              <MessageSquare size={18} />
-              <span>Text</span>
-            </Link>
-
-            <Link
-              href="/image"
-              className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
-                pathname === "/image"
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              }`}
-            >
-              <ImageIcon size={18} />
-              <span>Image</span>
-            </Link>
-            <Link
-              href="/rag"
-              className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
-                pathname === "/rag"
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              }`}
-            >
-              <FileUp size={18} />
-              <span>RAG</span>
-            </Link>
+        <div className="flex items-center gap-6 md:gap-8">
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-6">
+            <NavItems />
           </nav>
 
           <div className="flex items-center">
@@ -119,7 +120,7 @@ export default function Navbar() {
                 </button>
 
                 {dropdownOpen && (
-                  <div className="absolute right-0 w-56 mt-2 bg-background border rounded-md shadow-lg py-1 ring-1 ring-black/5 focus:outline-none">
+                  <div className="absolute right-0 w-72 mt-2 bg-background border rounded-md shadow-lg py-1 ring-1 ring-black/5 focus:outline-none">
                     <div className="flex items-center gap-3 px-4 py-3 border-b">
                       <Image
                         src={
@@ -170,8 +171,28 @@ export default function Navbar() {
               </Link>
             )}
           </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 hover:bg-muted/50 rounded-md"
+          >
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Navigation Menu */}
+      {mobileMenuOpen && (
+        <div
+          ref={mobileMenuRef}
+          className="md:hidden border-t bg-gradient-to-br from-orange-500/10 via-transparent to-mocha-950"
+        >
+          <nav className="container py-4 flex flex-col gap-3 px-4">
+            <NavItems />
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
