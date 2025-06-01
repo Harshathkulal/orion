@@ -12,14 +12,14 @@ interface CodeBlockProps {
 }
 
 export const CodeBlock: React.FC<CodeBlockProps> = ({ className, children, inline }) => {
-  if (inline) {
-    return <code className={className}>{children}</code>;
-  }
-
   const [isCopied, setIsCopied] = useState(false);
   const languageMatch = /language-(\w+)/.exec(className || '');
   const language = languageMatch ? languageMatch[1] : 'text';
   const codeString = String(children).replace(/\n$/, '');
+
+  if (inline) {
+    return <code className={className}>{children}</code>;
+  }
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(codeString);

@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       }
     } catch (apiError) {
       // Return error response if API key is invalid
-      logger.error("API key validation failed:", apiError);
+      logger.error("API key validation failed:", { error: apiError instanceof Error ? apiError.message : String(apiError) });
       return new NextResponse(
         JSON.stringify({ 
           error: "API key validation failed", 

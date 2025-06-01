@@ -72,7 +72,7 @@ export default function TextInput({
                 type="submit"
                 disabled={isDisabled}
                 aria-label="Send message"
-                className="absolute right-2 bottom-2 h-10 w-10 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm"
+                className="absolute right-2 bottom-2 h-10 w-10 flex items-center justify-center bg-orange-500/10 hover:bg-orange-500/10 text-white rounded-lg shadow-sm"
               >
                 <Send className="h-5 w-5" />
               </Button>
