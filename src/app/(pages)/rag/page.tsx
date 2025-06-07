@@ -15,17 +15,41 @@ export default function RagChatPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
 
-  const handleDocumentUpload = async (file: File) => {
-    // TODO: Implement actual file upload logic
-    const newDoc: Document = {
-      id: Date.now().toString(),
-      name: file.name,
-      size: file.size,
-      uploadedAt: new Date(),
-    };
-    setDocuments((prev) => [...prev, newDoc]);
+  const handleDocumentSelect = (doc: Document | undefined) => {
+    setSelectedDocument(doc || null);
   };
+  
 
+  const handleDocumentUpload = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+  
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+  
+      if (!res.ok) {
+        const error = await res.json();
+        console.error("Upload failed:", error);
+        return;
+      }
+  
+      const result = await res.json();
+      const newDoc: Document = {
+        id: result.collectionName,
+        name: file.name,
+        size: file.size,
+        uploadedAt: new Date(),
+      };
+    
+      setDocuments((prev) => [...prev, newDoc]);
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
   const handleDocumentDelete = async (documentId: string) => {
     // TODO: Implement actual document deletion logic
     setDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
@@ -40,7 +64,7 @@ export default function RagChatPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         query: question,
-        collectionName: "my-collection",
+        collectionName: selectedDocument?.id,
         documentId: selectedDocument?.id,
       }),
     });
@@ -60,7 +84,7 @@ export default function RagChatPage() {
           <div className="h-full overflow-y-auto">
             <DocumentManager
               documents={documents}
-              onDocumentSelect={setSelectedDocument}
+              onDocumentSelect={handleDocumentSelect}
               selectedDocumentId={selectedDocument?.id}
               onDocumentUpload={handleDocumentUpload}
               onDocumentDelete={handleDocumentDelete}
@@ -73,7 +97,7 @@ export default function RagChatPage() {
               apiEndpoint="/api/rag"
               maxFreeMessages={3}
               additionalProps={{
-                collectionName: "my-collection",
+                collectionName: selectedDocument?.id,
                 documentId: selectedDocument?.id,
               }}
               onMessageSubmit={handleMessageSubmit}

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     if (!query || !collectionName) {
       return NextResponse.json(
-        { error: "Query and collection name are required" },
+        { error: "Please upload a PDF and select a document." },
         { status: 400 }
       );
     }
