@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { processPdfAndEmbed } from "../services/pdfProcessor";
+import { pdfQueue } from "../utils/pdfQueue";
 
 export const uploadController = async (
   req: Request,
@@ -14,11 +14,14 @@ export const uploadController = async (
     const buffer = req.file.buffer;
     const originalName = req.file.originalname;
 
-    const result = await processPdfAndEmbed(buffer, originalName);
+    const job = await pdfQueue.add("process-pdf", {
+      buffer: buffer.toString("base64"),
+      originalName,
+    });
 
-    res.status(200).json({
-      message: "PDF uploaded, parsed, and embedded successfully",
-      ...result,
+    res.status(202).json({
+      message: "PDF upload accepted and processing started",
+      jobId: job.id,
     });
   } catch (error) {
     res.status(500).json({ message: "Upload failed", error: String(error) });

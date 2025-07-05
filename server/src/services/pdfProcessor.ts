@@ -21,24 +21,34 @@ export const processPdfAndEmbed = async (
   let tempPath = "";
 
   try {
-    // 1. Save buffer to temporary file
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    const qdrantUrl = process.env.QDRANT_URL;
+    const qdrantApiKey = process.env.QDRANT_API_KEY;
+
+    if (!geminiApiKey) throw new Error("Missing GEMINI_API_KEY");
+    if (!qdrantUrl) throw new Error("Missing QDRANT_URL");
+    if (!qdrantApiKey) throw new Error("Missing QDRANT_API_KEY");
+
+    // Save buffer to temp file
     const tempFileName = `${randomUUID()}.pdf`;
     tempPath = path.join(tmpdir(), tempFileName);
     await fs.writeFile(tempPath, buffer);
 
-    // 2. Load PDF content
+    // Load PDF
     const loader = new PDFLoader(tempPath);
     const docs = await loader.load();
+
     if (!docs || docs.length === 0) {
       throw new Error("PDF could not be parsed or is empty.");
     }
 
-    // 3. Split into text chunks
+    // Split docs into chunks
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1000,
       chunkOverlap: 200,
     });
     const splitDocs = await splitter.splitDocuments(docs);
+
     if (splitDocs.length === 0) {
       throw new Error("No chunks created from PDF.");
     }
@@ -46,14 +56,14 @@ export const processPdfAndEmbed = async (
     // 4. Embed using Gemini
     const embedder = new GoogleGenerativeAIEmbeddings({
       model: "text-embedding-004",
-      apiKey: process.env.GEMINI_API_KEY!,
+      apiKey: geminiApiKey,
     });
 
     // 5. Clean collection name and connect to Qdrant
     const collectionName = originalName.replace(/[^a-zA-Z0-9]/g, "_");
     const qdrantClient = new QdrantClient({
-      url: process.env.QDRANT_URL!,
-      apiKey: process.env.QDRANT_API_KEY!,
+      url: qdrantUrl,
+      apiKey: qdrantApiKey,
     });
 
     if (await qdrantClient.collectionExists(collectionName)) {
@@ -73,9 +83,12 @@ export const processPdfAndEmbed = async (
     };
   } catch (error) {
     console.error("[PDF_PROCESSOR_ERROR]", error);
-    throw new Error(`Embedding failed: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Embedding failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   } finally {
-    // 6. Clean up temp file
     if (tempPath) {
       try {
         await fs.unlink(tempPath);
