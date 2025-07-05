@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import upload from "./routes/upload-route";
 
 const app = express();
 
@@ -11,7 +12,7 @@ app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:3000",
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    methods: ["POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
     exposedHeaders: ["set-cookie"],
   })
@@ -21,5 +22,7 @@ app.use(
 app.get("/", (_req, res) => {
   res.json({ message: "Hello" });
 });
+
+app.use("/api", upload);
 
 export default app;
