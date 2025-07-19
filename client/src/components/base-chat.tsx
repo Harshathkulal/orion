@@ -1,163 +1,152 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+"use client";
+
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  FormEvent,
+} from "react";
 import TextInput from "@/components/text-input";
 import TextContent from "@/components/text-content";
 import LoginDialog from "@/components/login-dialog";
-import { Message } from "@/types/types";
+import { Message, BaseChatProps } from "@/types/types";
 import { useAuth } from "@clerk/nextjs";
-
-interface BaseChatProps {
-  apiEndpoint: string;
-  maxFreeMessages?: number;
-  additionalProps?: Record<string, unknown>;
-  onMessageSubmit?: (question: string, conversationHistory: Message[]) => Promise<{ response: string }>;
-  customMessageTransform?: (response: { response: string }) => string;
-}
 
 export default function BaseChat({
   apiEndpoint,
   maxFreeMessages = 3,
   additionalProps = {},
-  onMessageSubmit,
-  customMessageTransform,
 }: BaseChatProps) {
   const { isSignedIn } = useAuth();
+
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversationHistory, setConversationHistory] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
-  const [initial, setInitial] = useState(true);
   const [messageCount, setMessageCount] = useState(0);
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [conversationHistory, setConversationHistory] = useState<Message[]>([]);
+  const [initial, setInitial] = useState(true);
+
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const cleanup = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
   }, []);
 
+  // Cleanup on component unmount
   useEffect(() => cleanup, [cleanup]);
 
-  const handleError = useCallback((errorMessage: string) => {
-    setError(errorMessage);
+  // Show error message and update messages state
+  const showError = useCallback((message: string) => {
+    setError(message);
     setMessages((prev) => [
       ...prev,
-      { role: "model", content: errorMessage, isError: true },
+      { role: "model", content: message, isError: true },
     ]);
     setLoading(false);
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Handle streaming response from the API
+  const handleStreamingResponse = async (
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    userMessage: Message
+  ) => {
+    let responseText = "";
+    const modelMessage: Message = { role: "model", content: "" };
+
+    setMessages((prev) => [...prev, modelMessage]);
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = new TextDecoder().decode(value);
+        try {
+          const json = JSON.parse(chunk);
+          if (json.error) throw new Error(json.error);
+        } catch {
+          responseText += chunk;
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last?.role === "model") last.content = responseText;
+            return updated;
+          });
+        }
+      }
+
+      setConversationHistory((prev) => [
+        ...prev,
+        userMessage,
+        { ...modelMessage, content: responseText },
+      ]);
+    } finally {
+      reader.releaseLock();
+    }
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    const trimmed = question.trim();
+    if (!trimmed) return;
 
     if (!isSignedIn && messageCount >= maxFreeMessages) {
       setShowLoginDialog(true);
       return;
     }
 
-    const trimmedQuestion = question.trim();
-    if (!trimmedQuestion) return;
-
-    setError(null);
-    const userMessage: Message = { role: "user", content: trimmedQuestion };
+    const userMessage: Message = { role: "user", content: trimmed };
     setMessages((prev) => [...prev, userMessage]);
+    setConversationHistory((prev) => [...prev, userMessage]);
     setInitial(false);
     setLoading(true);
+    setError(null);
     setQuestion("");
 
     try {
-      let response;
-      if (onMessageSubmit) {
-        response = await onMessageSubmit(trimmedQuestion, conversationHistory);
-        const modelMessage: Message = {
-          role: "model",
-          content: customMessageTransform ? customMessageTransform(response) : response.response,
-        };
-        setMessages((prev) => [...prev, modelMessage]);
-        setConversationHistory((prev) => [...prev, userMessage, modelMessage]);
-      } else {
-        const fetchResponse = await fetch(apiEndpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question: trimmedQuestion,
-            conversationHistory,
-            ...additionalProps,
-          }),
-        });
+      const response = await fetch(apiEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: trimmed,
+          conversationHistory,
+          ...additionalProps,
+        }),
+      });
 
-        if (!fetchResponse.ok) {
-          const errorData = await fetchResponse.json();
-          throw new Error(errorData.error || "Something went wrong.");
-        }
-
-        // Handle streaming response
-        const reader = fetchResponse.body?.getReader();
-        if (!reader) throw new Error("No response stream available");
-
-        let responseText = "";
-        // Add initial empty model message
-        const modelMessage: Message = { role: "model", content: "" };
-        setMessages((prev) => [...prev, modelMessage]);
-
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            
-            // Convert the Uint8Array to text
-            const text = new TextDecoder().decode(value);
-            
-            // Check if the response is an error message
-            try {
-              const jsonResponse = JSON.parse(text);
-              if (jsonResponse.error) {
-                throw new Error(jsonResponse.error);
-              }
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (e) {
-              // If it's not JSON or doesn't have an error, treat it as normal text
-              responseText += text;
-              
-              // Update the last message in real-time
-              setMessages((prev) => {
-                const newMessages = [...prev];
-                const lastMessage = newMessages[newMessages.length - 1];
-                if (lastMessage && lastMessage.role === "model") {
-                  lastMessage.content = responseText;
-                }
-                return [...newMessages];
-              });
-
-              // Force a re-render
-              setLoading((prev) => prev);
-            }
-          }
-        } finally {
-          reader.releaseLock();
-        }
-
-        // Update conversation history with the final message
-        setConversationHistory((prev) => [...prev, userMessage, { ...modelMessage, content: responseText }]);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Something went wrong.");
       }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response stream");
+
+      await handleStreamingResponse(reader, userMessage);
 
       if (!isSignedIn) {
-        setMessageCount((prev) => prev + 1);
-        if (messageCount + 1 >= maxFreeMessages) setShowLoginDialog(true);
+        setMessageCount((prev) => {
+          const next = prev + 1;
+          if (next >= maxFreeMessages) setShowLoginDialog(true);
+          return next;
+        });
       }
     } catch (err) {
-      console.error("Error in handleSubmit:", err);
-      handleError(err instanceof Error ? err.message : "Unexpected error");
+      console.error("Submit error:", err);
+      showError(err instanceof Error ? err.message : "Unexpected error");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStop = () => {
-    cleanup();
-  };
+  // Handle stop action
+  const handleStop = () => cleanup();
 
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto w-full">
@@ -181,4 +170,4 @@ export default function BaseChat({
       <LoginDialog open={showLoginDialog} onOpenChange={setShowLoginDialog} />
     </div>
   );
-} 
+}

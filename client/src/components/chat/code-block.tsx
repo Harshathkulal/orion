@@ -1,21 +1,20 @@
-import React, { useState } from 'react';
-import { Clipboard, Check } from 'lucide-react';
-import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import React, { useState } from "react";
+import { Clipboard, Check } from "lucide-react";
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import { CodeBlockProps } from "@/types/types";
 
 const COPY_TIMEOUT_MS = 2000;
 
-interface CodeBlockProps {
-  className?: string;
-  children?: React.ReactNode;
-  inline?: boolean;
-}
-
-export const CodeBlock: React.FC<CodeBlockProps> = ({ className, children, inline }) => {
+export const CodeBlock: React.FC<CodeBlockProps> = ({
+  className,
+  children,
+  inline,
+}) => {
   const [isCopied, setIsCopied] = useState(false);
-  const languageMatch = /language-(\w+)/.exec(className || '');
-  const language = languageMatch ? languageMatch[1] : 'text';
-  const codeString = String(children).replace(/\n$/, '');
+  const languageMatch = /language-(\w+)/.exec(className || "");
+  const language = languageMatch ? languageMatch[1] : "text";
+  const codeString = String(children).replace(/\n$/, "");
 
   if (inline) {
     return <code className={className}>{children}</code>;
@@ -48,7 +47,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ className, children, inlin
           className="rounded-md !bg-zinc-800/50"
           customStyle={{
             margin: 0,
-            padding: '1rem',
+            padding: "1rem",
           }}
         >
           {codeString}
@@ -56,4 +55,4 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ className, children, inlin
       </div>
     </div>
   );
-}; 
+};

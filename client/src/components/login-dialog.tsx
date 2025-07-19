@@ -7,11 +7,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-
-interface LoginDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
+import { LoginDialogProps } from "@/types/types";
 
 export default function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
   const handleLogin = () => {

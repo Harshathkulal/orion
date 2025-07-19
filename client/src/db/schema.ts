@@ -1,8 +1,15 @@
-import { pgTable, varchar, text, timestamp, serial ,integer} from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  varchar,
+  text,
+  timestamp,
+  serial,
+  integer,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const users = pgTable("User", {
-  id: varchar("id", { length: 36 }).primaryKey(), // cuid length is ~25
+  id: varchar("id", { length: 36 }).primaryKey(),
   clerkId: varchar("clerkId", { length: 255 }).notNull().unique(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
@@ -29,7 +36,6 @@ export const prompts = pgTable("Prompt", {
   seed: serial("seed"),
   userId: varchar("userId", { length: 36 }),
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt", { mode: "date" }).defaultNow().notNull(),
 });
 
 export const images = pgTable("Image", {
@@ -39,14 +45,13 @@ export const images = pgTable("Image", {
   seed: serial("seed"),
   userId: varchar("userId", { length: 36 }),
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt", { mode: "date" }).defaultNow().notNull(),
 });
 
 export const documents = pgTable("documents", {
-  id: varchar("id", { length: 36 }).primaryKey(), 
-  name: varchar("name", { length: 255 }).notNull(), 
+  id: varchar("id", { length: 36 }).primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
   collectionName: varchar("collection_name", { length: 255 }).notNull(),
-  chunkCount: integer("chunk_count").notNull(), 
+  chunkCount: integer("chunk_count").notNull(),
   userId: varchar("user_id", { length: 36 }),
   uploadedAt: timestamp("uploaded_at", { mode: "date" }).defaultNow().notNull(),
 });
@@ -55,9 +60,9 @@ export const ragChats = pgTable("rag_chats", {
   id: varchar("id", { length: 36 }).primaryKey(),
   userId: varchar("user_id", { length: 36 }),
   collectionName: varchar("collection_name", { length: 255 }).notNull(),
-  Query: text("last_query").notNull(),
-  Response: text("last_response").notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  question: text("last_query").notNull(),
+  response: text("last_response").notNull(),
+  createdAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Optional: relations for type inference and joins

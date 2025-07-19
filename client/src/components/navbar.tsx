@@ -41,6 +41,7 @@ export default function Navbar() {
     };
   }, []);
 
+  // Handle sign out
   const handleSignOut = () => {
     signOut();
     setDropdownOpen(false);

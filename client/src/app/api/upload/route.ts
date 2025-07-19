@@ -1,157 +1,151 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, unlink } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
-import { randomUUID } from 'crypto';
-import { auth } from '@clerk/nextjs/server';
-import { rateLimit } from "@/lib/rate-limit";
-import { ipFilter } from "@/lib/ip-filter";
+import { NextRequest, NextResponse } from "next/server";
+import { writeFile, unlink } from "fs/promises";
+import { join } from "path";
+import { tmpdir } from "os";
+import cuid from "cuid";
+import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { QdrantClient } from "@qdrant/js-client-rest";
+import { QdrantVectorStore } from "@langchain/qdrant";
+import { db } from "@/db/db";
+import { documents } from "@/db/schema";
+import { auth } from "@clerk/nextjs/server";
+import { applyApiProtection } from "@/lib/middleware/api-protection";
 import { logger } from "@/lib/logger";
-import { createHash } from "crypto";
 
-import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf';
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
-import { QdrantClient } from '@qdrant/js-client-rest';
-import { QdrantVectorStore } from '@langchain/qdrant';
-import { db } from '@/db/db';
-import { documents } from '@/db/schema';
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
-
+/**
+ * Handles POST request to upload, parse, and store a PDF in vector DB.
+ * Includes file validation, chunking, embeddings, and DB persistence.
+ *
+ * @param req - Next.js API request
+ * @returns JSON response with collection details or error
+ */
 export async function POST(req: NextRequest) {
-  let tempPath = '';
+  let tempPath = "";
 
   try {
-    // IP-based Protection and Filtering
-    const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    // API protection: IP block + rate limit
+    const protectionResponse = await applyApiProtection(req);
+    if (protectionResponse) return protectionResponse;
 
-    // Block potentially malicious IPs
-    if (ipFilter.isBlocked(clientIp)) {
-      return new NextResponse(JSON.stringify({ message: "Access denied" }), {
-        status: 403,
-      });
+    // Auth
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Rate Limiting
-    const identifier = createHash("sha256").update(clientIp).digest("hex");
+    // Parse uploaded form data
+    const formData = await req.formData();
+    const file = formData.get("file");
 
-    try {
-      await rateLimit.check(identifier, 5, 300000); // 5 requests per 5 minutes for file uploads
-    } catch (error) {
-      logger.error("Rate limit exceeded", error as Record<string, unknown>);
-      return new NextResponse(
-        JSON.stringify({ message: "Too many requests" }),
-        {
-          status: 429,
-          headers: {
-            "Retry-After": "300",
-            "X-RateLimit-Limit": "5",
-            "X-RateLimit-Remaining": "0",
-          },
-        }
+    // Validate presence and type
+    if (!(file instanceof Blob)) {
+      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    }
+    if (!(file as File).type.includes("pdf")) {
+      return NextResponse.json(
+        { error: "Only PDF files are allowed" },
+        { status: 400 }
       );
     }
 
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const formData = await req.formData();
-    const file = formData.get('file');
-
-    if (!(file instanceof Blob)) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
-    }
-
-    // Validate file type
-    if (!(file as File).type.includes('pdf')) {
-      return NextResponse.json({ error: 'Only PDF files are allowed' }, { status: 400 });
-    }
-
-    // Validate file size (10MB limit)
+    // Validate file size (limit: 10MB)
     if ((file as File).size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File size must be less than 10MB' }, { status: 400 });
+      return NextResponse.json(
+        { error: "File size must be less than 10MB" },
+        { status: 400 }
+      );
     }
 
+    // Save file temporarily
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const originalName = (file as File).name || 'uploaded.pdf';
-
-    const tempFileName = `${randomUUID()}.pdf`;
+    const originalName = (file as File).name || "uploaded.pdf";
+    const tempFileName = `${cuid()}.pdf`;
     tempPath = join(tmpdir(), tempFileName);
-
     await writeFile(tempPath, buffer);
 
-    // Parse PDF
+    // Load PDF and split into chunks
     const loader = new PDFLoader(tempPath);
     const docs = await loader.load();
-
-    // Split into chunks
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1000,
       chunkOverlap: 200,
     });
     const splitDocs = await splitter.splitDocuments(docs);
 
-    // Embeddings using Gemini
+    // Embed text using Gemini
     const embedder = new GoogleGenerativeAIEmbeddings({
-      model: 'text-embedding-004',
+      model: "text-embedding-004",
       apiKey: process.env.GEMINI_API_KEY!,
     });
 
-    // Qdrant client
-    const rawName = originalName.split('.pdf')[0];
-    const collectionName = rawName.replace(/[^a-zA-Z0-9]/g, '_');
-
+    // Clean collection name and init Qdrant client
+    const rawName = originalName.replace(/\.pdf$/i, "");
+    const collectionName = rawName.replace(/[^a-zA-Z0-9]/g, "_");
     const client = new QdrantClient({
       url: process.env.QDRANT_URL!,
       apiKey: process.env.QDRANT_API_KEY!,
     });
+    console.log(process.env.QDRANT_URL, process.env.QDRANT_API_KEY);
 
+    // Drop existing collection with the same name
     if (await client.collectionExists(collectionName)) {
       await client.deleteCollection(collectionName);
     }
 
+    // Store embeddings in Qdrant
     const vectorStore = new QdrantVectorStore(embedder, {
       client,
       collectionName,
     });
     await vectorStore.addDocuments(splitDocs);
 
+    // Save metadata to database
     await db.insert(documents).values({
-      id: randomUUID(),
+      id: cuid(),
       name: originalName,
       collectionName,
       chunkCount: splitDocs.length,
       userId,
     });
 
-    return NextResponse.json({
-      message: 'PDF uploaded, parsed, and stored in Qdrant',
-      collectionName,
-      totalChunks: splitDocs.length,
-    }, {
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "Referrer-Policy": "no-referrer",
+    return NextResponse.json(
+      {
+        message: "PDF uploaded, parsed, and stored in Qdrant",
+        collectionName,
+        totalChunks: splitDocs.length,
       },
-    });
-
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "DENY",
+          "Referrer-Policy": "no-referrer",
+        },
+      }
+    );
   } catch (error) {
-    logger.error('Upload error:', error as Record<string, unknown>);
-    return NextResponse.json({ error: 'Upload failed', details: String(error) }, { status: 500 });
+    logger.error("PDF upload error:", error as Record<string, unknown>);
+    return NextResponse.json(
+      { error: "Upload failed", details: String(error) },
+      { status: 500 }
+    );
   } finally {
+    // Clean up temp file
     if (tempPath) {
       try {
         await unlink(tempPath);
       } catch (cleanupErr) {
-        logger.error('Failed to delete temp file:', cleanupErr as Record<string, unknown>);
+        logger.error(
+          "Failed to delete temp file:",
+          cleanupErr as Record<string, unknown>
+        );
       }
     }
   }

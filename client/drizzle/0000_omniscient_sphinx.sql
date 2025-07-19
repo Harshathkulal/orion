@@ -13,8 +13,7 @@ CREATE TABLE "Image" (
 	"url" text,
 	"seed" serial NOT NULL,
 	"userId" varchar(36),
-	"createdAt" timestamp DEFAULT now() NOT NULL,
-	"updatedAt" timestamp DEFAULT now() NOT NULL
+	"createdAt" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "Prompt" (
@@ -24,8 +23,7 @@ CREATE TABLE "Prompt" (
 	"url" text,
 	"seed" serial NOT NULL,
 	"userId" varchar(36),
-	"createdAt" timestamp DEFAULT now() NOT NULL,
-	"updatedAt" timestamp DEFAULT now() NOT NULL
+	"createdAt" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "rag_chats" (

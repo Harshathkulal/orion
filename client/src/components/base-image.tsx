@@ -5,13 +5,7 @@ import TextInput from "@/components/text-input";
 import ImageContent from "./image-content";
 import LoginDialog from "./login-dialog";
 import { useAuth } from "@clerk/nextjs";
-
-interface BaseImageProps {
-  apiEndpoint: string;
-  maxFreeMessages?: number;
-  additionalProps?: Record<string, unknown>;
-  onImageGenerated?: (imageUrl: string) => void;
-}
+import { BaseImageProps } from "@/types/types";
 
 export default function BaseImage({
   apiEndpoint,
@@ -36,6 +30,7 @@ export default function BaseImage({
     }
   }, []);
 
+  // Cleanup on component unmount
   useEffect(() => cleanup, [cleanup]);
 
   const handleStop = () => {
@@ -85,7 +80,7 @@ export default function BaseImage({
       const data = await response.json();
       setImageUrl(data.url);
       onImageGenerated?.(data.url);
-      
+
       if (!isSignedIn) {
         setMessageCount((prev) => prev + 1);
         if (messageCount + 1 >= maxFreeMessages) {
@@ -123,4 +118,4 @@ export default function BaseImage({
       <LoginDialog open={showLoginDialog} onOpenChange={setShowLoginDialog} />
     </div>
   );
-} 
+}

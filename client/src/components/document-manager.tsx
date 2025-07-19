@@ -1,21 +1,9 @@
-import React, { useState } from 'react';
-import { Upload, FileText, Trash2, ChevronDown } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
+"use client";
 
-interface Document {
-  name: string;
-  id: string;
-  size?: number;
-  uploadedAt?: Date;
-}
-
-interface DocumentManagerProps {
-  documents: Document[];
-  onDocumentSelect: (document: Document | undefined) => void;
-  selectedDocumentId?: string;
-  onDocumentUpload: (file: File) => Promise<void>;
-  onDocumentDelete: (documentId: string) => Promise<void>;
-}
+import React, { useState } from "react";
+import { Upload, FileText, Trash2, ChevronDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DocumentManagerProps } from "@/types/types";
 
 export default function DocumentManager({
   documents,
@@ -27,17 +15,23 @@ export default function DocumentManager({
   const [isUploading, setIsUploading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  // Handle file upload
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
+    setIsUploading(true);
     try {
-      setIsUploading(true);
-      await onDocumentUpload(file);
+      for (const file of Array.from(files)) {
+        await onDocumentUpload(file);
+      }
     } catch (error) {
-      console.error('Error uploading file:', error);
+      console.error("Upload error:", error);
     } finally {
       setIsUploading(false);
+      event.target.value = "";
     }
   };
 
@@ -49,6 +43,7 @@ export default function DocumentManager({
             <input
               type="file"
               accept=".pdf"
+              multiple
               onChange={handleFileUpload}
               className="hidden"
               id="document-upload"
@@ -59,7 +54,7 @@ export default function DocumentManager({
               className="flex items-center px-2 py-1 text-xs font-medium text-white bg-mocha-800 rounded hover:bg-mocha-700 focus:outline-none focus:ring-1 focus:ring-mocha-800 cursor-pointer transition-colors"
             >
               <Upload className="w-3 h-3 mr-1" />
-              {isUploading ? 'Uploading...' : 'Upload PDF'}
+              {isUploading ? "Uploading..." : "Upload PDF"}
             </label>
           </div>
 
@@ -68,13 +63,23 @@ export default function DocumentManager({
             className="lg:hidden flex items-center gap-1 text-xs text-mocha-800 hover:text-mocha-900"
           >
             <span>Documents</span>
-            <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+            <ChevronDown
+              className={`w-3 h-3 transition-transform ${
+                isExpanded ? "rotate-180" : ""
+              }`}
+            />
           </button>
         </div>
 
-        <div className={`mt-2 space-y-1 ${isExpanded ? 'block' : 'hidden'} lg:block`}>
+        <div
+          className={`mt-2 space-y-1 ${
+            isExpanded ? "block" : "hidden"
+          } lg:block`}
+        >
           {documents.length === 0 ? (
-            <p className="text-xs text-mocha-600">Upload a document to get started</p>
+            <p className="text-xs text-mocha-600">
+              Upload a document to get started
+            </p>
           ) : (
             <div className="flex flex-col lg:flex-row lg:flex-wrap lg:gap-2">
               {documents.map((doc) => {
@@ -83,7 +88,8 @@ export default function DocumentManager({
                 return (
                   <div
                     key={doc.id}
-                    className={`flex items-center justify-between p-2 rounded w-full`}>
+                    className={`flex items-center justify-between p-2 rounded w-full`}
+                  >
                     <div className="flex items-center gap-2">
                       <Checkbox
                         checked={isSelected}

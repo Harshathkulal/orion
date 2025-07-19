@@ -1,5 +1,3 @@
-// app/api/chat/route.ts
-
 import { db } from "@/db/db";
 import { ragChats } from "@/db/schema";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -8,134 +6,213 @@ import { QdrantVectorStore } from "@langchain/qdrant";
 import cuid from "cuid";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { rateLimit } from "@/lib/rate-limit";
-import { ipFilter } from "@/lib/ip-filter";
+import { applyApiProtection } from "@/lib/middleware/api-protection";
 import { validateInput } from "@/lib/input-validation";
 import { logger } from "@/lib/logger";
-import { createHash } from "crypto";
+import { Message } from "@/types/types";
 
-const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-
-const embedder = new GoogleGenerativeAIEmbeddings({
-  model: "text-embedding-004",
-  apiKey: process.env.GEMINI_API_KEY2!,
-});
-
+/**
+ * Handles POST requests for RAG (Retrieval-Augmented Generation).
+ * Validates input, performs vector search, and streams responses from Google LLM.
+ *
+ * @param req - The incoming Next.js request object
+ * @returns A stream of text responses or an error message
+ */
 export async function POST(req: NextRequest) {
   try {
-    // IP-based Protection and Filtering
-    const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    // API protection: IP block + rate limit
+    const protectionResponse = await applyApiProtection(req);
+    if (protectionResponse) return protectionResponse;
 
-    // Block potentially malicious IPs
-    if (ipFilter.isBlocked(clientIp)) {
-      return new NextResponse(JSON.stringify({ message: "Access denied" }), {
-        status: 403,
-      });
-    }
-
-    // Rate Limiting
-    const identifier = createHash("sha256").update(clientIp).digest("hex");
-
-    try {
-      await rateLimit.check(identifier, 10, 60000); // 10 requests per minute
-    } catch (error) {
-      logger.error("Rate limit exceeded", error as Record<string, unknown>);
-      return new NextResponse(
-        JSON.stringify({ message: "Too many requests" }),
-        {
-          status: 429,
-          headers: {
-            "Retry-After": "60",
-            "X-RateLimit-Limit": "10",
-            "X-RateLimit-Remaining": "0",
-          },
-        }
-      );
-    }
-
+    // Auth
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Parse input
     const body = await req.json();
-    const { query, collectionName } = body;
+    const { question, collectionName, conversationHistory } = body;
 
-    // Input Validation
+    // Validate input
     const validationResult = validateInput({
-      question: query,
-      conversationHistory: [],
+      question,
+      conversationHistory,
       maxLength: 1000,
       allowedCharacters: /^[a-zA-Z0-9\s.,!?()-]+$/,
     });
 
     if (!validationResult.valid) {
-      return NextResponse.json({
-        message: "Invalid input",
-        details: validationResult.errors,
-      }, { status: 400 });
-    }
-
-    if (!query || !collectionName) {
       return NextResponse.json(
-        { error: "Please upload a PDF and select a document." },
+        {
+          message: "Invalid input",
+          details: validationResult.errors,
+        },
         { status: 400 }
       );
     }
 
-    const vectorStore = new QdrantVectorStore(embedder, {
-      url: process.env.QDRANT_URL!,
-      apiKey: process.env.QDRANT_API_KEY!,
-      collectionName,
-    });
-
-    const searchResults = await vectorStore.similaritySearch(query, 5);
-    interface SearchResult {
-      pageContent: string;
-      metadata: Record<string, unknown>;
+    if (!collectionName) {
+      return NextResponse.json(
+        { error: "Missing document or collection" },
+        { status: 400 }
+      );
     }
 
-    const context: string = searchResults.map((doc: SearchResult) => doc.pageContent).join("\n\n");
+    // Check API key
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    const vectorDBkey = process.env.QDRANT_API_KEY!;
+    const vectorUrl = process.env.QDRANT_URL!;
 
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: `Use the following context to answer the question:\n\n${context}\n\nQuestion: ${query}`,
-            },
-          ],
-        },
-      ],
+    if (!geminiApiKey || !vectorDBkey || !vectorUrl) {
+      logger.error("Missing API keys");
+      return new NextResponse(
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500 }
+      );
+    }
+
+    // Initialize embeddings
+    const embedder = new GoogleGenerativeAIEmbeddings({
+      model: "text-embedding-004",
+      apiKey: geminiApiKey,
     });
 
-    const textResponse = result.response.text();
-
-    await db.insert(ragChats).values({
-      id: cuid(),
-      userId: userId || null,
-      Query: query,
-      Response: textResponse,
+    // Initialize Qdrant vector store
+    const vectorStore = new QdrantVectorStore(embedder, {
+      url: vectorUrl,
+      apiKey: vectorDBkey,
       collectionName,
-      updatedAt: new Date(),
     });
 
-    return NextResponse.json({
-      message: "Chat successful",
-      response: textResponse,
-    }, {
+    // Initialize Google model
+    const genAI = new GoogleGenerativeAI(geminiApiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+    });
+
+    // Perform vector search
+    const searchResults = await vectorStore.similaritySearch(question, 5);
+    const context = searchResults.map((doc) => doc.pageContent).join("\n\n");
+
+    // Prepare conversation context (limited to last 4 messages)
+    const limitedHistory = (conversationHistory || [])
+      .slice(-4)
+      .map((msg: Message) => ({
+        role: msg.role,
+        parts: [{ text: msg.content.slice(0, 500) }],
+      }));
+
+    const fullConversation = [
+      ...limitedHistory,
+      {
+        role: "user",
+        parts: [
+          {
+            text: `You are an expert assistant. Use ONLY the following context to answer the question below. Do NOT make assumptions beyond the given information,Context:\n\n${context}\n\nQuestion: ${question}`,
+          },
+        ],
+      },
+    ];
+
+    let responseText = "";
+
+    // Abort controller for streaming
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const chat = model.startChat({ history: fullConversation });
+          const result = await chat.sendMessageStream(question);
+
+          if (signal.aborted) {
+            controller.close();
+            return;
+          }
+
+          if (!result || !result.stream) {
+            throw new Error("Invalid response from model");
+          }
+
+          for await (const chunk of result.stream) {
+            if (signal.aborted) break;
+
+            if (!chunk || !chunk.text) continue;
+
+            const text = chunk.text();
+            responseText += text;
+
+            try {
+              const encoder = new TextEncoder();
+              const encodedText = encoder.encode(text);
+              controller.enqueue(encodedText);
+            } catch (error) {
+              console.error("Enqueue failed:", error);
+              break;
+            }
+          }
+
+          // Save prompt and response if not aborted
+          if (!signal.aborted) {
+            try {
+              await db.insert(ragChats).values({
+                id: cuid(),
+                userId,
+                question: question,
+                response: responseText,
+                collectionName,
+                createdAt: new Date(),
+              });
+            } catch (err) {
+              console.error("failed to save Rag in DB", err);
+            }
+            controller.close();
+          }
+        } catch (error) {
+          console.error("AI error:", error);
+
+          try {
+            const errorMessage =
+              error instanceof Error ? error.message : "Unknown error occurred";
+            const encoder = new TextEncoder();
+            controller.enqueue(
+              encoder.encode(JSON.stringify({ error: errorMessage }))
+            );
+          } catch (e) {
+            console.error("Failed to send error message:", e);
+          }
+
+          if (!signal.aborted) {
+            controller.close();
+          }
+        }
+      },
+      cancel() {
+        console.log("Chat stream aborted");
+        abortController.abort();
+      },
+    });
+
+    return new NextResponse(stream, {
       headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "DENY",
         "Referrer-Policy": "no-referrer",
+        Connection: "keep-alive",
+        "Transfer-Encoding": "chunked",
       },
     });
-  } catch (err) {
-    logger.error("RAG Chat error:", err as Record<string, unknown>);
-    return NextResponse.json({ error: "Chat failed", details: String(err) }, { status: 500 });
+  } catch (globalError) {
+    logger.error("Global API Error", globalError as Record<string, unknown>);
+    return new NextResponse(JSON.stringify({ message: "Server failed" }), {
+      status: 500,
+    });
   }
 }

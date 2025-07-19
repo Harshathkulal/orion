@@ -3,13 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { Button } from "./ui/button";
-
-interface ImageContentProps {
-  initial: boolean;
-  loading: boolean;
-  error: string | null;
-  imageUrl: string | null;
-}
+import { ImageContentProps } from "@/types/types";
 
 export default function ImageContent({
   initial,
@@ -17,9 +11,9 @@ export default function ImageContent({
   error,
   imageUrl,
 }: ImageContentProps) {
+  // Handle image download
   const handleDownload = () => {
     if (imageUrl) {
-      // Create a temporary anchor element
       const link = document.createElement("a");
       link.href = imageUrl;
       link.download = `generated-image-${Date.now()}.png`;
@@ -34,8 +28,12 @@ export default function ImageContent({
       {initial ? (
         <div className="h-full flex items-center justify-center text-center pt-14">
           <div>
-            <h1 className="text-2xl font-semibold mb-2">Welcome to Image Gen!</h1>
-            <p className="text-primary/60">Enter a prompt to generate an image</p>
+            <h1 className="text-2xl font-semibold mb-2">
+              Welcome to Image Gen!
+            </h1>
+            <p className="text-primary/60">
+              Enter a prompt to generate an image
+            </p>
           </div>
         </div>
       ) : loading ? (

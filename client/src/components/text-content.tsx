@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useEffect, useRef } from "react";
 import { TextContentProps } from "@/types/types";
 import { WelcomeMessage } from "./chat/welcome-message";
@@ -13,19 +11,16 @@ export const TextContent: React.FC<TextContentProps> = ({
   error,
   rag,
 }) => {
-  const contentRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.scrollTop = contentRef.current.scrollHeight;
+    if (endRef.current) {
+      endRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [messages, loading]);
 
   return (
-    <div
-      ref={contentRef}
-      className="flex-1 w-full"
-    >
+    <div className="flex-1 w-full overflow-y-auto">
       <div className="max-w-4xl mx-auto px-4 py-8">
         {initial && !loading ? (
           <WelcomeMessage isRag={!!rag} />
@@ -36,6 +31,7 @@ export const TextContent: React.FC<TextContentProps> = ({
         )}
         {loading && <LoadingIndicator />}
         {error && <ErrorMessage message={error} />}
+        <div ref={endRef} />
       </div>
     </div>
   );

@@ -15,7 +15,7 @@ const isPublicRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, req) => {
   // Allow all API routes to pass through
-  if (req.nextUrl.pathname.startsWith('/api/')) {
+  if (req.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
 

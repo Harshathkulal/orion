@@ -1,53 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Message } from "@/types/types";
-import { rateLimit } from "@/lib/rate-limit";
-import { ipFilter } from "@/lib/ip-filter";
 import { validateInput } from "@/lib/input-validation";
 import { logger } from "@/lib/logger";
-import { createHash } from "crypto";
 import { db } from "@/db/db";
 import { prompts } from "@/db/schema";
 import cuid from "cuid";
+import { applyApiProtection } from "@/lib/middleware/api-protection";
 
+/**
+ * Handles POST requests to the chat interactions.
+ * Validates input, checks API key, and streams responses from Google LLM.
+ *
+ * @param req - The incoming Next.js request object
+ * @returns A stream of text responses or an error message
+ */
 export async function POST(req: NextRequest) {
   try {
-    // IP-based Protection and Filtering
-    const clientIp =
-      req.headers.get("x-forwarded-for") ||
-      req.headers.get("x-real-ip") ||
-      "unknown";
+    // API protection: IP block + rate limit
+    const protectionResponse = await applyApiProtection(req);
+    if (protectionResponse) return protectionResponse;
 
-    // Block potentially malicious IPs
-    if (ipFilter.isBlocked(clientIp)) {
-      return new NextResponse(JSON.stringify({ message: "Access denied" }), {
-        status: 403,
-      });
-    }
-
-    // Rate Limiting
-    const identifier = createHash("sha256").update(clientIp).digest("hex");
-
-    try {
-      await rateLimit.check(identifier, 10, 60000); // 10 requests per minute
-    } catch (error) {
-      logger.error("Rate limit exceeded", error as Record<string, unknown>);
-      return new NextResponse(
-        JSON.stringify({ message: "Too many requests" }),
-        {
-          status: 429,
-          headers: {
-            "Retry-After": "60",
-            "X-RateLimit-Limit": "10",
-            "X-RateLimit-Remaining": "0",
-          },
-        }
-      );
-    }
-
-    // Input Validation and Sanitization
+    // Parse input
     const { question, conversationHistory } = await req.json();
 
+    // Validate input
     const validationResult = validateInput({
       question,
       conversationHistory,
@@ -65,41 +42,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Environment and API Key Validation
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    // Check API key
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
       logger.error("Missing Gemini API key");
       return new NextResponse(
-        JSON.stringify({ error: "Server configuration error: Missing API key" }),
+        JSON.stringify({ error: "Server configuration error" }),
         { status: 500 }
       );
     }
 
-    // Initialize Google AI
-    const genAI = new GoogleGenerativeAI(apiKey);
+    // Initialize Google model
+    const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
     });
 
-    // Simple test to check API key validity
-    try {
-      const testResult = await model.generateContent("test");
-      if (!testResult || !testResult.response) {
-        throw new Error("Invalid API response");
-      }
-    } catch (apiError) {
-      // Return error response if API key is invalid
-      logger.error("API key validation failed:", { error: apiError instanceof Error ? apiError.message : String(apiError) });
-      return new NextResponse(
-        JSON.stringify({ 
-          error: "API key validation failed", 
-          details: apiError instanceof Error ? apiError.message : "Unknown error"
-        }),
-        { status: 500 }
-      );
-    }
-
-    // Prepare Conversation Context
+    // Prepare conversation context (limited to last 4 messages)
     const limitedHistory = conversationHistory
       .slice(-4)
       .map((msg: Message) => ({
@@ -114,7 +73,7 @@ export async function POST(req: NextRequest) {
 
     let responseText = "";
 
-    // Use a shared abort signal
+    // Abort controller for streaming
     const abortController = new AbortController();
     const signal = abortController.signal;
 
@@ -124,32 +83,24 @@ export async function POST(req: NextRequest) {
           const chat = model.startChat({ history: fullConversation });
           const result = await chat.sendMessageStream(question);
 
-          // Check if already aborted
           if (signal.aborted) {
             controller.close();
             return;
           }
 
           if (!result || !result.stream) {
-            throw new Error("Invalid response from AI model");
+            throw new Error("Invalid response from model");
           }
 
           for await (const chunk of result.stream) {
-            // Check if aborted before processing each chunk
-            if (signal.aborted) {
-              break;
-            }
+            if (signal.aborted) break;
 
-            if (!chunk || !chunk.text) {
-              console.error("Invalid chunk received:", chunk);
-              continue;
-            }
+            if (!chunk || !chunk.text) continue;
 
             const text = chunk.text();
             responseText += text;
 
             try {
-              // Encode the text to ensure proper streaming
               const encoder = new TextEncoder();
               const encodedText = encoder.encode(text);
               controller.enqueue(encodedText);
@@ -159,38 +110,34 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // Only save to DB and close controller if not aborted
+          // Save prompt and response if not aborted
           if (!signal.aborted) {
             try {
-              await db
-                .insert(prompts)
-                .values({
-                  id: cuid(),
-                  prompt: question,
-                  response: responseText,
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                });
+              await db.insert(prompts).values({
+                id: cuid(),
+                prompt: question,
+                response: responseText,
+                createdAt: new Date(),
+              });
             } catch (err) {
-              console.error("DB save error:", err);
+              console.error("failed to save Chat in DB", err);
             }
-
-            // Close controller
             controller.close();
           }
         } catch (error) {
           console.error("AI error:", error);
-          
-          // Send error message to client
+
           try {
-            const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+            const errorMessage =
+              error instanceof Error ? error.message : "Unknown error occurred";
             const encoder = new TextEncoder();
-            controller.enqueue(encoder.encode(JSON.stringify({ error: errorMessage })));
+            controller.enqueue(
+              encoder.encode(JSON.stringify({ error: errorMessage }))
+            );
           } catch (e) {
             console.error("Failed to send error message:", e);
           }
 
-          // If not already aborted, close the controller
           if (!signal.aborted) {
             controller.close();
           }
@@ -198,7 +145,7 @@ export async function POST(req: NextRequest) {
       },
 
       cancel() {
-        console.log("Stream was stopped by client");
+        console.log("Rag stream aborted");
         abortController.abort();
       },
     });
@@ -206,7 +153,8 @@ export async function POST(req: NextRequest) {
     return new NextResponse(stream, {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
         Pragma: "no-cache",
         Expires: "0",
         "X-Content-Type-Options": "nosniff",
