@@ -5,7 +5,7 @@ import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import cuid from "cuid";
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth";
 import { applyApiProtection } from "@/lib/middleware/api-protection";
 import { validateInput } from "@/lib/input-validation";
 import { logger } from "@/lib/logger";
@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
     if (protectionResponse) return protectionResponse;
 
     // Auth
-    const { userId } = await auth();
+    const authData = await auth.api.getSession({ headers: req.headers });
+    const userId = authData?.session?.userId;
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -159,7 +160,7 @@ export async function POST(req: NextRequest) {
             try {
               await db.insert(ragChats).values({
                 id: cuid(),
-                userId,
+                userId: userId,
                 question: question,
                 response: responseText,
                 collectionName,

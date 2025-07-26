@@ -11,14 +11,14 @@ import TextInput from "@/components/text-input";
 import TextContent from "@/components/text-content";
 import LoginDialog from "@/components/login-dialog";
 import { Message, BaseChatProps } from "@/types/types";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/use-session";
 
 export default function BaseChat({
   apiEndpoint,
   maxFreeMessages = 3,
   additionalProps = {},
 }: BaseChatProps) {
-  const { isSignedIn } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationHistory, setConversationHistory] = useState<Message[]>([]);
@@ -96,7 +96,7 @@ export default function BaseChat({
     const trimmed = question.trim();
     if (!trimmed) return;
 
-    if (!isSignedIn && messageCount >= maxFreeMessages) {
+    if (!isAuthenticated && messageCount >= maxFreeMessages) {
       setShowLoginDialog(true);
       return;
     }
@@ -130,7 +130,7 @@ export default function BaseChat({
 
       await handleStreamingResponse(reader, userMessage);
 
-      if (!isSignedIn) {
+      if (!isAuthenticated) {
         setMessageCount((prev) => {
           const next = prev + 1;
           if (next >= maxFreeMessages) setShowLoginDialog(true);

@@ -1,22 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth, useUser, useClerk } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/use-session";
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { LogIn, LogOut, Loader2, Settings, Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "./ui/button";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 
 export default function Navbar() {
-  const { isLoaded, isSignedIn } = useAuth();
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const { user, isPending, isAuthenticated } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const router = useRouter();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -42,9 +43,9 @@ export default function Navbar() {
   }, []);
 
   // Handle sign out
-  const handleSignOut = () => {
-    signOut();
-    setDropdownOpen(false);
+  const handleSignOut = async () => {
+    await authClient.signOut();
+    router.push("/");
   };
 
   const NavItems = () => (
@@ -96,50 +97,54 @@ export default function Navbar() {
           </nav>
 
           <div className="flex items-center">
-            {!isLoaded ? (
+            {isPending ? (
               <Loader2
                 size={24}
                 className="animate-spin text-muted-foreground"
               />
-            ) : isSignedIn ? (
+            ) : isAuthenticated ? (
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="flex items-center focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full"
                 >
-                  <Image
-                    src={
-                      user?.externalAccounts[0].imageUrl ||
-                      user?.imageUrl ||
-                      "avatar"
-                    }
-                    alt="Profile"
-                    width={32}
-                    height={32}
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/10"
-                  />
+                  {user?.image ? (
+                    <Image
+                      src={user.image}
+                      alt="Profile"
+                      width={32}
+                      height={32}
+                      className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/10"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-secondary text-primary flex items-center justify-center font-medium ring-2 ring-primary/10">
+                      {user?.name?.charAt(0).toUpperCase() ?? "U"}
+                    </div>
+                  )}
                 </button>
 
                 {dropdownOpen && (
                   <div className="absolute right-0 w-72 mt-2 bg-background border rounded-md shadow-lg py-1 ring-1 ring-black/5 focus:outline-none">
                     <div className="flex items-center gap-3 px-4 py-3 border-b">
-                      <Image
-                        src={
-                          user?.externalAccounts[0].imageUrl ||
-                          user?.imageUrl ||
-                          "avatar"
-                        }
-                        alt="Profile"
-                        width={32}
-                        height={32}
-                        className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/10"
-                      />
+                      {user?.image ? (
+                        <Image
+                          src={user.image}
+                          alt="Profile"
+                          width={32}
+                          height={32}
+                          className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/10"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-secondary text-primary flex items-center justify-center font-medium ring-2 ring-primary/10">
+                          {user?.name?.charAt(0).toUpperCase() ?? "U"}
+                        </div>
+                      )}
                       <div className="flex flex-col">
                         <span className="text-sm font-medium">
-                          {user?.firstName}
+                          {user?.name}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {user?.emailAddresses[0].emailAddress}
+                          {user?.email}
                         </span>
                       </div>
                     </div>
