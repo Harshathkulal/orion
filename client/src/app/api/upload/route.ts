@@ -10,7 +10,7 @@ import { QdrantClient } from "@qdrant/js-client-rest";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import { db } from "@/db/db";
 import { documents } from "@/db/schema";
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth";
 import { applyApiProtection } from "@/lib/middleware/api-protection";
 import { logger } from "@/lib/logger";
 
@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
     if (protectionResponse) return protectionResponse;
 
     // Auth
-    const { userId } = await auth();
+    const authData = await auth.api.getSession({ headers: req.headers });
+    const userId = authData?.session?.userId;
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

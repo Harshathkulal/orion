@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import TextInput from "@/components/text-input";
 import ImageContent from "./image-content";
 import LoginDialog from "./login-dialog";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/use-session";
 import { BaseImageProps } from "@/types/types";
 
 export default function BaseImage({
@@ -13,7 +13,7 @@ export default function BaseImage({
   additionalProps = {},
   onImageGenerated,
 }: BaseImageProps) {
-  const { isSignedIn } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [initial, setInitial] = useState(true);
@@ -42,7 +42,7 @@ export default function BaseImage({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!isSignedIn && messageCount >= maxFreeMessages) {
+    if (!isAuthenticated && messageCount >= maxFreeMessages) {
       setShowLoginDialog(true);
       return;
     }
@@ -81,7 +81,7 @@ export default function BaseImage({
       setImageUrl(data.url);
       onImageGenerated?.(data.url);
 
-      if (!isSignedIn) {
+      if (!isAuthenticated) {
         setMessageCount((prev) => prev + 1);
         if (messageCount + 1 >= maxFreeMessages) {
           setShowLoginDialog(true);
