@@ -31,6 +31,7 @@ export default function RagChatPage() {
       if (!res.ok) {
         const error = await res.json();
         toast.error("Upload Failed, Try again");
+        console.error("Upload error:", error);
         return;
       }
 
