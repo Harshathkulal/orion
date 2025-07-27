@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { toast } from "sonner";
 
 export default function Navbar() {
   const { user, isPending, isAuthenticated } = useAuth();
@@ -44,7 +45,12 @@ export default function Navbar() {
 
   // Handle sign out
   const handleSignOut = async () => {
-    await authClient.signOut();
+    const logout = await authClient.signOut();
+    if (logout.error) {
+      toast.error("Logged out Failed, Try again");
+      return;
+    }
+    toast.success("Logged out successfully");
     router.push("/");
   };
 

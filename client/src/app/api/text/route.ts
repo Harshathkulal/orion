@@ -145,7 +145,6 @@ export async function POST(req: NextRequest) {
       },
 
       cancel() {
-        console.log("Rag stream aborted");
         abortController.abort();
       },
     });

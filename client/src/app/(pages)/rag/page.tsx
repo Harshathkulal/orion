@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import BaseChat from "@/components/base-chat";
 import DocumentManager from "@/components/document-manager";
 import { Document } from "@/types/types";
+import { toast } from "sonner";
 
 export default function RagChatPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -29,11 +30,12 @@ export default function RagChatPage() {
 
       if (!res.ok) {
         const error = await res.json();
-        console.error("Upload failed:", error);
+        toast.error("Upload Failed, Try again");
         return;
       }
 
       const result = await res.json();
+      toast.success("Document uploaded successfully");
       const newDoc: Document = {
         id: result.collectionName,
         name: file.name,
@@ -43,6 +45,7 @@ export default function RagChatPage() {
 
       setDocuments((prev) => [...prev, newDoc]);
     } catch (error) {
+      toast.error("Upload Failed, Try again");
       console.error("Upload error:", error);
     }
   };
@@ -53,6 +56,7 @@ export default function RagChatPage() {
     if (selectedDocument?.id === documentId) {
       setSelectedDocument(null);
     }
+    toast.success("Document Deleted successfully");
   };
 
   return (
