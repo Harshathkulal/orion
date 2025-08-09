@@ -28,7 +28,7 @@ services:
   server:
     build:
       context: ./server
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     volumes:
       - ./server:/app
       - /app/node_modules
@@ -36,7 +36,7 @@ services:
       - ./server/.env.local
     ports:
       - "5000:5000"
-    command: ["node", "dist/index.js"]
+    command: ["npm", "run", "dev"]
     depends_on:
       - redis
       - qdrant
@@ -45,7 +45,7 @@ services:
   worker:
     build:
       context: ./server
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     volumes:
       - ./server:/app
       - /app/node_modules
@@ -60,7 +60,7 @@ services:
   client:
     build:
       context: ./client
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     volumes:
       - ./client:/app
       - /app/node_modules
@@ -68,6 +68,7 @@ services:
       - ./client/.env.local
     ports:
       - "3000:3000"
+    command: ["npm", "run", "dev"]
     depends_on:
       - server
 
