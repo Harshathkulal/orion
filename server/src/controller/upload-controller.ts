@@ -1,26 +1,27 @@
 import { Request, Response } from "express";
-import { pdfQueue } from "../utils/pdfQueue";
+import { fileUploadQueue } from "../utils/pdfQueue";
+import { ALLOWED_MIME_TYPES } from "../constants/allowedMimeTypes";
 
 export const uploadController = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    if (!req.file || req.file.mimetype !== "application/pdf") {
-      res.status(400).json({ message: "Only PDF files are allowed" });
+    if (!req.file || !ALLOWED_MIME_TYPES.includes(req.file.mimetype)) {
+      res.status(400).json({ message: "Invalid file type" });
       return;
     }
 
     const buffer = req.file.buffer;
     const originalName = req.file.originalname;
 
-    const job = await pdfQueue.add("process-pdf", {
+    const job = await fileUploadQueue.add("process-file", {
       buffer: buffer.toString("base64"),
       originalName,
     });
 
     res.status(202).json({
-      message: "PDF upload accepted and processing started",
+      message: "Upload accepted and processing started",
       jobId: job.id,
     });
   } catch (error) {

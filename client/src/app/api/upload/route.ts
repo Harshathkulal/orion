@@ -92,7 +92,6 @@ export async function POST(req: NextRequest) {
       url: process.env.QDRANT_URL!,
       apiKey: process.env.QDRANT_API_KEY!,
     });
-    console.log(process.env.QDRANT_URL, process.env.QDRANT_API_KEY);
 
     // Drop existing collection with the same name
     if (await client.collectionExists(collectionName)) {

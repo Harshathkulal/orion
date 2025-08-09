@@ -1,6 +1,6 @@
 import { Queue } from "bullmq";
 
-export const pdfQueue = new Queue("pdf-queue", {
+export const fileUploadQueue = new Queue("file-queue", {
   connection: process.env.REDIS_URL
     ? { url: process.env.REDIS_URL }
     : {
