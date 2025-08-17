@@ -20,7 +20,7 @@ export const TextContent: React.FC<TextContentProps> = ({
   }, [messages, loading]);
 
   return (
-    <div className="flex-1 w-full overflow-y-auto">
+    <div id="textContent" data-testid="text-content" className="flex-1 w-full overflow-y-auto">
       <div className="max-w-4xl mx-auto px-4 py-8">
         {initial && !loading ? (
           <WelcomeMessage isRag={!!rag} />

@@ -149,7 +149,7 @@ export default function BaseChat({
   const handleStop = () => cleanup();
 
   return (
-    <div className="flex flex-col h-full max-w-4xl mx-auto w-full">
+    <div id="baseChat" data-testid="base-chat" className="flex flex-col h-full max-w-4xl mx-auto w-full">
       <div className="flex-1">
         <TextContent
           messages={messages}

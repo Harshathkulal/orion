@@ -22,7 +22,7 @@ export default function CookieConsent() {
   if (!showConsent) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-md">
+    <div id="cookieConsent" className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 w-[90%] max-w-md">
       <Card>
         <CardContent className="p-4 flex flex-col gap-3">
           <p className="text-sm text-gray-700">

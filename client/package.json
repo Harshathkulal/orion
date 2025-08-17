@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "db:generate": "npx drizzle-kit generate",
-    "db:push": "npx drizzle-kit push"
+    "db:push": "npx drizzle-kit push",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
@@ -59,7 +61,12 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@swc/jest": "^0.2.39",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.7.0",
+    "@testing-library/react": "^16.3.0",
     "@types/express": "^5.0.2",
+    "@types/jest": "^30.0.0",
     "@types/lru-cache": "^7.10.10",
     "@types/multer": "^1.4.12",
     "@types/node": "^20",
@@ -69,8 +76,12 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "eslint": "^9",
     "eslint-config-next": "15.1.6",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^30.0.5",
+    "jest-environment-jsdom": "^30.0.5",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 
 const Hero = () => {
   return (
-    <section className="relative pt-32 pb-20 px-4 overflow-hidden">
+    <section id="hero" className="relative pt-32 pb-20 px-4 overflow-hidden">
       {/* Background Gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-transparent to-mocha-950 rounded-full blur-3xl transform scale-125 animate-gradient" />
 

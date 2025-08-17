@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef } from "react";
 import { Send, StopCircle } from "lucide-react";
-import { Textarea } from "./ui/textarea"; // Keeping textarea for auto-resizing
+import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { TextInputProps } from "@/types/types";
 
@@ -39,7 +39,7 @@ export default function TextInput({
   };
 
   return (
-    <div className="sticky bottom-0 w-full bg-background z-40">
+    <div id="textInput" data-testid="text-input" className="sticky bottom-0 w-full bg-background z-40">
       <div className="w-full p-4">
         <form onSubmit={onSubmit} className="relative">
           <div className="relative">
