@@ -26,21 +26,19 @@ https://orion-puce.vercel.app/
    # Clone the repository
    git clone https://github.com/Harshathkulal/orion
    cd orion
-
-   # Install dependencies
-   npm install
    ```
 
-2. Start the development server:
+2. Build and Run Docker Envirnoment:
 
    ```bash
-   npm run dev
+   docker-compose up --build
    ```
 
 3. Access the application in your browser:
 
    ```bash
    http://localhost:3000
+   http://localhost:5000
    ```
 
 ## Architecture

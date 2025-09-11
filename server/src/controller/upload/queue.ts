@@ -1,11 +1,8 @@
 import { Request, Response } from "express";
-import { fileUploadQueue } from "../utils/pdfQueue";
-import { ALLOWED_MIME_TYPES } from "../constants/allowedMimeTypes";
+import { fileUploadQueue } from "../../utils/pdfQueue";
+import { ALLOWED_MIME_TYPES } from "../../constants/allowedMimeTypes";
 
-export const uploadController = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const queueUploadController = async (req: Request, res: Response) => {
   try {
     if (!req.file || !ALLOWED_MIME_TYPES.includes(req.file.mimetype)) {
       res.status(400).json({ message: "Invalid file type" });
