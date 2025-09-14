@@ -1,6 +1,8 @@
 let cachedToken: string | null = null;
 let tokenExpiry: number | null = null;
 
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
+
 /**
  * Fetch and cache JWT token
  */
@@ -11,7 +13,7 @@ export async function getAuthToken(): Promise<string | null> {
   }
 
   try {
-    const res = await fetch("/api/auth/token", { credentials: "include" });
+    const res = await fetch(`${BASE_URL}/token`, { credentials: "include" });
     if (!res.ok) throw new Error("Failed to fetch token");
 
     const { token } = await res.json();

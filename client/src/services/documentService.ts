@@ -1,12 +1,13 @@
 import { Document } from "@/types/types";
 import api from "@/lib/axios";
+const BASE_URL = process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL!;
 
 export async function uploadDocument(file: File): Promise<Document> {
   const formData = new FormData();
   formData.append("file", file);
 
   try {
-    const res = await api.post("/api/v1/upload", formData, {
+    const res = await api.post(`${BASE_URL}/upload`, formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },

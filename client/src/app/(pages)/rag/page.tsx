@@ -60,7 +60,7 @@ export default function RagChatPage() {
         <div className="flex-1 min-h-0 relative">
           <div className="absolute inset-0 overflow-y-auto">
             <BaseChat
-              apiEndpoint="/api/rag"
+              apiEndpoint="/rag"
               maxFreeMessages={3}
               additionalProps={{
                 collectionName: selectedDocument?.id,
