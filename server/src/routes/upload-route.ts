@@ -5,6 +5,6 @@ import { protectPath } from "../middleware/protect-path";
 
 const router = express.Router();
 
-router.post("/", upload.single("file"), uploadController);
+router.post("/", upload.single("file"), protectPath, uploadController);
 
 export default router;
