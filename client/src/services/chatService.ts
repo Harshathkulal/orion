@@ -1,5 +1,4 @@
-import { Message } from "@/types/types";
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 // Stream response chunks and return final text
 export async function streamResponse(

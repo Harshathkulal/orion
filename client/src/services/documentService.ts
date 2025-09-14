@@ -1,6 +1,6 @@
 import { Document } from "@/types/types";
 import api from "@/lib/axios";
-const BASE_URL = process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL!;
+const BASE_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL!;
 
 export async function uploadDocument(file: File): Promise<Document> {
   const formData = new FormData();

@@ -2,7 +2,7 @@ import axios from "axios";
 import { getAuthToken } from "@/services/authToken";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL!,
+  baseURL: process.env.NEXT_PUBLIC_EXPRESS_API_URL!,
   withCredentials: true,
 });
 

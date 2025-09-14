@@ -1,7 +1,7 @@
 let cachedToken: string | null = null;
 let tokenExpiry: number | null = null;
 
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 /**
  * Fetch and cache JWT token
