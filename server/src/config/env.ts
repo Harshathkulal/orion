@@ -7,5 +7,5 @@ export const env = {
   PORT: Number(process.env.PORT),
   CLIENT_URL: process.env.CLIENT_URL,
   LOG_LEVEL: process.env.LOG_LEVEL,
-  USE_QUEUE: process.env.USE_QUEUE
+  USE_QUEUE: process.env.USE_QUEUE,
 };

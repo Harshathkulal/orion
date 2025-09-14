@@ -6,8 +6,9 @@ export const protectPath = (
   res: Response,
   next: NextFunction
 ): void => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.split(" ")[1];
+   const token =
+      req.cookies?.accessToken ||
+      req.header("Authorization")?.replace("Bearer ", "");
 
   if (!token) {
     res.status(401).json({ message: "No token" });

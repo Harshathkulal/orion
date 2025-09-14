@@ -1,11 +1,18 @@
 import { env } from "../../config/env";
 import { queueUploadController } from "./queue";
 import { directUploadController } from "./upload";
+import { createFileUploadQueue } from "../../utils/pdfQueue";
 import { Request, Response } from "express";
 
-export const uploadController = (req: Request, res: Response) => {
-  if (env.USE_QUEUE) {
-    return queueUploadController(req, res);
+export const uploadController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  if (env.USE_QUEUE === "true") {
+    const fileUploadQueue = createFileUploadQueue();
+    await queueUploadController(fileUploadQueue)(req, res);
+    return;
   }
-  return directUploadController(req, res);
+
+  await directUploadController(req, res);
 };
