@@ -1,28 +1,29 @@
 import { Document } from "@/types/types";
-const BASE_URL = process.env.NEXT_PUBLIC_EXPRESS_BACKEND_URL!;
+import api from "@/lib/axios";
 
 export async function uploadDocument(file: File): Promise<Document> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch(`${BASE_URL}/api/upload`, {
-    method: "POST",
-    body: formData,
-  });
+  try {
+    const res = await api.post("/api/v1/upload", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error?.message || "Upload failed");
+    const result = res.data;
+
+    return {
+      id: result.collectionName,
+      name: file.name,
+      size: file.size,
+      uploadedAt: new Date(),
+    };
+  } catch (err: any) {
+    console.error("Upload failed", err);
+    throw new Error(err?.response?.data?.message || "Upload failed");
   }
-
-  const result = await res.json();
-
-  return {
-    id: result.collectionName,
-    name: file.name,
-    size: file.size,
-    uploadedAt: new Date(),
-  };
 }
 
 export async function deleteDocument(documentId: string): Promise<boolean> {
