@@ -42,7 +42,7 @@ export default function TextInput({
     <div
       id="textInput"
       data-testid="text-input"
-      className="fixed bottom-0 left-0 w-full bg-background z-40 pb-[env(safe-area-inset-bottom)]"
+      className="fixed bottom-0 left-0 w-full bg-background z-40 pb-[env(safe-area-inset-bottom)] lg:relative"
     >
       <div className="w-full p-4">
         <form onSubmit={onSubmit} className="relative">

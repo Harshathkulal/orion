@@ -9,7 +9,7 @@ export default function ImagePage() {
       <div className="flex-1 min-h-0 relative">
         <div className="absolute inset-0 flex flex-col">
           <BaseImage
-            apiEndpoint="/api/image"
+            apiEndpoint="/image"
             maxFreeMessages={3}
           />
         </div>

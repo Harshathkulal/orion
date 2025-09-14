@@ -7,7 +7,7 @@ const server = app.listen(env.PORT, () => {
 });
 
 process.on("SIGINT", () => {
-  logger.info("Shutting down gracefully...");
+  logger.info("Shutting down ...");
   server.close(() => {
     logger.info("Server closed.");
     process.exit(0);

@@ -69,6 +69,13 @@ export const verification = pgTable("verification", {
   ),
 });
 
+export const jwks = pgTable("jwks", {
+  id: text("id").primaryKey(),
+  publicKey: text("public_key").notNull(),
+  privateKey: text("private_key").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+});
+
 export const prompts = pgTable("Prompt", {
   id: varchar("id", { length: 36 }).primaryKey(),
   prompt: text("prompt").notNull(),
@@ -156,4 +163,14 @@ export const ragChatsRelations = relations(ragChats, ({ one }) => ({
   }),
 }));
 
-export const schema = { user, session, account, verification, prompts, images, documents, ragChats };
+export const schema = {
+  user,
+  session,
+  account,
+  verification,
+  jwks,
+  prompts,
+  images,
+  documents,
+  ragChats,
+};

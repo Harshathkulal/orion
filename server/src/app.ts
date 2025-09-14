@@ -31,7 +31,7 @@ app.use(
 );
 
 // Rate limiting for APIs
-app.use("/api", apiLimiter);
+app.use("/api/v1", apiLimiter);
 
 // Health check
 app.get("/health", (_req, res) => {
@@ -39,7 +39,7 @@ app.get("/health", (_req, res) => {
 });
 
 // API routes
-app.use("/api", routes);
+app.use("/api/v1", routes);
 
 // Error handlers
 app.use(notFoundHandler);

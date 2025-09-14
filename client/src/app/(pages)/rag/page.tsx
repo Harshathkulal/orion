@@ -5,6 +5,7 @@ import BaseChat from "@/components/base-chat";
 import DocumentManager from "@/components/document-manager";
 import { Document } from "@/types/types";
 import { toast } from "sonner";
+import { uploadDocument, deleteDocument } from "@/services/documentService";
 
 export default function RagChatPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -19,45 +20,27 @@ export default function RagChatPage() {
 
   // Handle document upload
   const handleDocumentUpload = async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        toast.error("Upload Failed, Try again");
-        console.error("Upload error:", error);
-        return;
-      }
-
-      const result = await res.json();
-      toast.success("Document uploaded successfully");
-      const newDoc: Document = {
-        id: result.collectionName,
-        name: file.name,
-        size: file.size,
-        uploadedAt: new Date(),
-      };
-
+      const newDoc = await uploadDocument(file);
       setDocuments((prev) => [...prev, newDoc]);
-    } catch (error) {
+      toast.success("Document uploaded successfully");
+    } catch {
       toast.error("Upload Failed, Try again");
-      console.error("Upload error:", error);
     }
   };
 
   // Handle document deletion
   const handleDocumentDelete = async (documentId: string) => {
-    setDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
-    if (selectedDocument?.id === documentId) {
-      setSelectedDocument(null);
+    try {
+      await deleteDocument(documentId);
+      setDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
+      if (selectedDocument?.id === documentId) {
+        setSelectedDocument(null);
+      }
+      toast.success("Document Deleted successfully");
+    } catch {
+      toast.error("Delete Failed, Try again");
     }
-    toast.success("Document Deleted successfully");
   };
 
   return (
@@ -77,7 +60,7 @@ export default function RagChatPage() {
         <div className="flex-1 min-h-0 relative">
           <div className="absolute inset-0 overflow-y-auto">
             <BaseChat
-              apiEndpoint="/api/rag"
+              apiEndpoint="/rag"
               maxFreeMessages={3}
               additionalProps={{
                 collectionName: selectedDocument?.id,
