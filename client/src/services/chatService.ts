@@ -1,3 +1,4 @@
+import { ChatPayload  } from "@/types/types";
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 // Stream response chunks and return final text
@@ -31,7 +32,7 @@ export async function streamResponse(
 
 export async function sendMessage(
   apiEndpoint: string,
-  payload: any
+  payload: ChatPayload
 ): Promise<Response> {
   const response = await fetch(`${BASE_URL}/${apiEndpoint}`, {
     method: "POST",

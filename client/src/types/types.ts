@@ -88,3 +88,9 @@ export interface LoginDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+export interface ChatPayload {
+  question: string;
+  conversationHistory: Message[];
+  [key: string]: unknown;
+}

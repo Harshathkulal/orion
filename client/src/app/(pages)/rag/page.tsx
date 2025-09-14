@@ -24,7 +24,7 @@ export default function RagChatPage() {
       const newDoc = await uploadDocument(file);
       setDocuments((prev) => [...prev, newDoc]);
       toast.success("Document uploaded successfully");
-    } catch (err) {
+    } catch {
       toast.error("Upload Failed, Try again");
     }
   };
@@ -38,7 +38,7 @@ export default function RagChatPage() {
         setSelectedDocument(null);
       }
       toast.success("Document Deleted successfully");
-    } catch (err) {
+    } catch {
       toast.error("Delete Failed, Try again");
     }
   };

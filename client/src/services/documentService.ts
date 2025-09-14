@@ -21,9 +21,9 @@ export async function uploadDocument(file: File): Promise<Document> {
       size: file.size,
       uploadedAt: new Date(),
     };
-  } catch (err: any) {
-    console.error("Upload failed", err);
-    throw new Error(err?.response?.data?.message || "Upload failed");
+  } catch {
+    console.error("Upload failed");
+    throw new Error("Upload failed");
   }
 }
 
