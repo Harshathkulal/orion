@@ -11,7 +11,7 @@ export default function BaseChat({
   apiEndpoint,
   maxFreeMessages = 3,
   additionalProps = {},
-}: BaseChatProps) {
+}: Readonly<BaseChatProps>) {
   const {
     messages,
     question,

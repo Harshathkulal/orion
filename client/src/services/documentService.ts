@@ -13,7 +13,7 @@ export async function uploadDocument(file: File): Promise<Document> {
       },
     });
 
-    const result = res.data;
+    const result = res.data.result;
 
     return {
       id: result.collectionName,

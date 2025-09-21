@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     if (!(file instanceof Blob)) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
-    if (!(file as File).type.includes("pdf")) {
+    if (!(file).type.includes("pdf")) {
       return NextResponse.json(
         { error: "Only PDF files are allowed" },
         { status: 400 }
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate file size (limit: 10MB)
-    if ((file as File).size > 10 * 1024 * 1024) {
+    if ((file).size > 10 * 1024 * 1024) {
       return NextResponse.json(
         { error: "File size must be less than 10MB" },
         { status: 400 }
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     // Save file temporarily
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const originalName = (file as File).name || "uploaded.pdf";
+    const originalName = (file).name || "uploaded.pdf";
     const tempFileName = `${cuid()}.pdf`;
     tempPath = join(tmpdir(), tempFileName);
     await writeFile(tempPath, buffer);
@@ -116,9 +116,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       {
-        message: "PDF uploaded, parsed, and stored in Qdrant",
-        collectionName,
-        totalChunks: splitDocs.length,
+        message: "File processed Successfully",
+        result: {
+          collectionName,
+          totalChunks: splitDocs.length,
+        },
       },
       {
         headers: {
