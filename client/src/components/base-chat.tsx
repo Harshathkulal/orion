@@ -32,7 +32,12 @@ export default function BaseChat({
       className="flex flex-col h-full max-w-4xl mx-auto w-full"
     >
       <div className="flex-1">
-        <TextContent messages={messages} loading={loading} initial={initial} error={error} />
+        <TextContent
+          messages={messages}
+          loading={loading}
+          initial={initial}
+          error={error}
+        />
       </div>
       <TextInput
         question={question}

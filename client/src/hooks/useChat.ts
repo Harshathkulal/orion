@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, FormEvent } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Message } from "@/types/types";
 import { sendMessage, streamResponse } from "@/services/chatService";
 import { useAuth } from "@/lib/auth/use-session";
@@ -21,9 +21,10 @@ export function useChat(
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const cleanup = useCallback(() => {
+  const handleStop = useCallback(() => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
+    setLoading(false);
   }, []);
 
   const showError = useCallback((message: string) => {
@@ -35,10 +36,11 @@ export function useChat(
     setLoading(false);
   }, []);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-
-    const trimmed = question.trim();
+  const handleSubmit = async (payload: {
+    question: string;
+    fileName?: string;
+  }) => {
+    const trimmed = payload.question.trim();
     if (!trimmed) return;
 
     if (!isAuthenticated && messageCount >= maxFreeMessages) {
@@ -57,6 +59,7 @@ export function useChat(
     try {
       const response = await sendMessage(apiEndpoint, {
         question: trimmed,
+        fileName: payload.fileName,
         conversationHistory,
         ...additionalProps,
       });
@@ -104,6 +107,6 @@ export function useChat(
     showLoginDialog,
     setShowLoginDialog,
     handleSubmit,
-    handleStop: cleanup,
+    handleStop,
   };
 }

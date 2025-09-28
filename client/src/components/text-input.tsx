@@ -1,91 +1,169 @@
 "use client";
-import React, { useEffect, useRef } from "react";
-import { Send, StopCircle } from "lucide-react";
+
+import React, { useEffect, useRef, useState } from "react";
+import { Send, StopCircle, Paperclip, X, Loader2 } from "lucide-react";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
-import { TextInputProps } from "@/types/types";
+import { toast } from "sonner";
+import { uploadDocument, deleteDocument } from "@/services/documentService";
+
+interface TextInputProps {
+  question: string;
+  setQuestion: (q: string) => void;
+  onSubmit: (payload: { question: string; fileName?: string }) => void;
+  loading?: boolean;
+  handleStop?: () => void;
+}
 
 export default function TextInput({
   question,
   setQuestion,
   onSubmit,
-  loading,
+  loading = false,
   handleStop,
 }: TextInputProps) {
-  const isDisabled = question.trim() === "";
-
-  // Ref for the textarea to control its resizing
+  const [file, setFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const isDisabled = question.trim() === "" || isUploading;
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Resize the textarea based on content
-  const handleResize = () => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto"; // Reset height to auto
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`; // Set height based on content
-    }
-  };
-
-  // Call the handleResize whenever question changes
+  // Auto resize textarea
   useEffect(() => {
-    handleResize();
+    if (!textareaRef.current) return;
+    textareaRef.current.style.height = "auto";
+    textareaRef.current.style.height = `${Math.min(
+      textareaRef.current.scrollHeight,
+      200
+    )}px`;
   }, [question]);
 
-  // Handle Enter key behavior
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      onSubmit(e);
+      handleSend();
     }
   };
 
+  const handleFileSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const selectedFile = files[0];
+
+    setIsUploading(true);
+    try {
+      await uploadDocument(selectedFile);
+      toast.success(`Uploaded: ${selectedFile.name}`);
+      setFile(selectedFile);
+    } catch (err) {
+      console.error(err);
+      toast.error("Upload failed. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDocumentDelete = async (documentId: string) => {
+    try {
+      await deleteDocument(documentId);
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      toast.success("Document Deleted successfully");
+    } catch {
+      toast.error("Delete Failed, Try again");
+    }
+  };
+
+  const handleSend = () => {
+    if (isDisabled) return;
+    onSubmit({ question: question.trim(), fileName: file?.name });
+    setQuestion("");
+    setFile(null);
+  };
+
   return (
-    <div
-      id="textInput"
-      data-testid="text-input"
-      className="fixed bottom-0 left-0 w-full bg-background z-40 pb-[env(safe-area-inset-bottom)] lg:relative"
-    >
-      <div className="w-full p-4">
-        <form onSubmit={onSubmit} className="relative">
-          <div className="relative">
+    <div className="fixed bottom-0 left-0 w-full bg-background z-40">
+      <div className="max-w-4xl mx-auto w-full p-4">
+        <div className="flex items-center gap-2 rounded-2xl border border-input bg-card px-3 py-2 shadow-sm">
+          <label className="cursor-pointer shrink-0 flex items-center justify-center">
+            <input
+              type="file"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={(e) => handleFileSelect(e.target.files)}
+              disabled={isUploading}
+            />
+            <Paperclip
+              className={`h-5 w-5 ${
+                isUploading
+                  ? "text-muted-foreground opacity-40 cursor-not-allowed"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            />
+          </label>
+
+          <div className="flex-1 flex flex-col gap-1">
+            {/* File chip */}
+            {file || isUploading ? (
+              <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md text-xs truncate w-[300px]">
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Uploading…</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="truncate">{file?.name}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        file?.name && handleDocumentDelete(file.name)
+                      }
+                      className="hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : null}
+
+            {/* Textarea */}
             <Textarea
               ref={textareaRef}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type your message..."
-              className="w-full pr-12 resize-none transition-all duration-200 ease-in-out"
-              disabled={loading}
-              rows={2}
-              style={{
-                minHeight: "48px",
-                maxHeight: "200px",
-                overflowY: "auto",
-              }}
+              placeholder="Type a message…"
+              className="w-full resize-none border-0 focus-visible:ring-0 bg-transparent text-sm"
+              rows={1}
+              disabled={loading || isUploading}
+              style={{ minHeight: "40px", maxHeight: "200px" }}
             />
-            {loading ? (
-              <Button
-                type="button"
-                onClick={handleStop}
-                aria-label="Stop generation"
-                className="absolute right-2 bottom-2 h-10 w-10 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm"
-              >
-                <StopCircle className="h-5 w-5" />
-              </Button>
-            ) : (
-              <Button
-                type="submit"
-                disabled={isDisabled}
-                aria-label="Send message"
-                className="absolute right-2 bottom-2 h-10 w-10 flex items-center justify-center bg-orange-500/10 hover:bg-orange-500/10 text-white rounded-lg shadow-sm"
-              >
-                <Send className="h-5 w-5" />
-              </Button>
-            )}
           </div>
-        </form>
-        <p className="text-xs text-center mt-2">
-          Response is generated by AI.Please verify the information before
-          taking action.
+
+          {/* Send / Stop button */}
+          {loading ? (
+            <Button
+              type="button"
+              onClick={handleStop}
+              className="h-9 w-9 rounded-full bg-red-600 hover:bg-red-700 text-white"
+            >
+              <StopCircle className="h-5 w-5" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              disabled={isDisabled}
+              onClick={handleSend}
+              className="h-9 w-9 rounded-full bg-orange-500/10 hover:bg-orange-500/20 text-foreground"
+            >
+              <Send className="h-5 w-5" />
+            </Button>
+          )}
+        </div>
+
+        <p className="text-xs text-center mt-2 text-muted-foreground">
+          AI-generated response. Please verify before taking action.
         </p>
       </div>
     </div>
