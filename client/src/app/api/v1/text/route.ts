@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     // Initialize Google model
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
     });
 
     // Prepare conversation context (limited to last 4 messages)
