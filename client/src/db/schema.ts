@@ -83,6 +83,7 @@ export const prompts = pgTable("Prompt", {
   url: text("url"),
   seed: serial("seed"),
   userId: varchar("userId", { length: 36 }),
+  fileName: varchar("fileName", { length: 255 }),
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
 });
 

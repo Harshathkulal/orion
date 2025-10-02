@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { Message } from "@/types/types";
 import { validateInput } from "@/lib/input-validation";
 import { logger } from "@/lib/logger";
@@ -7,6 +7,7 @@ import { db } from "@/db/db";
 import { prompts } from "@/db/schema";
 import cuid from "cuid";
 import { applyApiProtection } from "@/lib/middleware/api-protection";
+import { findDocuments } from "@/lib/find-documents";
 
 /**
  * Handles POST requests to the chat interactions.
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
     if (protectionResponse) return protectionResponse;
 
     // Parse input
-    const { question, conversationHistory } = await req.json();
+    const { question, conversationHistory = [], fileName } = await req.json();
 
     // Validate input
     const validationResult = validateInput({
@@ -52,13 +53,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Initialize Google model
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
-    });
+    // Fetch Qdrant context if file is provided
+    let qdrantContext = "";
+    if (fileName) {
+      try {
+        qdrantContext = await findDocuments(question, fileName);
+      } catch (err) {
+        console.error("Qdrant search failed:", err);
+      }
+    }
 
-    // Prepare conversation context (limited to last 4 messages)
+    console.log(qdrantContext)
+
+    // Build conversation history (last 4 messages only)
     const limitedHistory = conversationHistory
       .slice(-4)
       .map((msg: Message) => ({
@@ -66,84 +73,65 @@ export async function POST(req: NextRequest) {
         parts: [{ text: msg.content.slice(0, 500) }],
       }));
 
+    // Inline Qdrant context directly into the user's prompt
+    const finalPrompt =
+      fileName && qdrantContext
+        ? `Use the following document context to answer:\n\n${qdrantContext}\n\nUser Question: ${question}`
+        : question;
+
     const fullConversation = [
       ...limitedHistory,
-      { role: "user", parts: [{ text: question }] },
+      { role: "user", parts: [{ text: finalPrompt }] },
     ];
 
-    let responseText = "";
+    // Create chat with context
+    const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
+    const chat = genAI.chats.create({
+      model: "gemini-2.5-flash",
+      history: fullConversation,
+    });
 
-    // Abort controller for streaming
+    let responseText = "";
     const abortController = new AbortController();
     const signal = abortController.signal;
 
+    // Stream response
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const chat = model.startChat({ history: fullConversation });
-          const result = await chat.sendMessageStream(question);
+          const responseStream = await chat.sendMessageStream({
+            message: question,
+          });
 
-          if (signal.aborted) {
-            controller.close();
-            return;
-          }
-
-          if (!result || !result.stream) {
-            throw new Error("Invalid response from model");
-          }
-
-          for await (const chunk of result.stream) {
+          for await (const chunk of responseStream) {
             if (signal.aborted) break;
 
-            if (!chunk || !chunk.text) continue;
-
-            const text = chunk.text();
+            const text = chunk.text;
             responseText += text;
 
-            try {
-              const encoder = new TextEncoder();
-              const encodedText = encoder.encode(text);
-              controller.enqueue(encodedText);
-            } catch (error) {
-              console.error("Enqueue failed:", error);
-              break;
-            }
+            const encoder = new TextEncoder();
+            controller.enqueue(encoder.encode(text));
           }
 
-          // Save prompt and response if not aborted
           if (!signal.aborted) {
-            try {
-              await db.insert(prompts).values({
-                id: cuid(),
-                prompt: question,
-                response: responseText,
-                createdAt: new Date(),
-              });
-            } catch (err) {
-              console.error("failed to save Chat in DB", err);
-            }
+            // Save to DB
+            await db.insert(prompts).values({
+              id: cuid(),
+              prompt: question,
+              response: responseText,
+              createdAt: new Date(),
+              fileName: fileName ?? null,
+            });
             controller.close();
           }
         } catch (error) {
           console.error("AI error:", error);
-
-          try {
-            const errorMessage =
-              error instanceof Error ? error.message : "Unknown error occurred";
-            const encoder = new TextEncoder();
-            controller.enqueue(
-              encoder.encode(JSON.stringify({ error: errorMessage }))
-            );
-          } catch (e) {
-            console.error("Failed to send error message:", e);
-          }
-
-          if (!signal.aborted) {
-            controller.close();
-          }
+          controller.enqueue(
+            new TextEncoder().encode("Failed to get response. Try again.\n\n")
+          );
+          controller.close();
         }
       },
-
       cancel() {
         abortController.abort();
       },
@@ -151,16 +139,9 @@ export async function POST(req: NextRequest) {
 
     return new NextResponse(stream, {
       headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "Referrer-Policy": "no-referrer",
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-store",
         Connection: "keep-alive",
-        "Transfer-Encoding": "chunked",
       },
     });
   } catch (globalError) {

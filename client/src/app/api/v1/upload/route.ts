@@ -13,6 +13,7 @@ import { documents } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { applyApiProtection } from "@/lib/middleware/api-protection";
 import { logger } from "@/lib/logger";
+import { v4 as uuidv4 } from "uuid";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -86,8 +87,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Clean collection name and init Qdrant client
-    const rawName = originalName.replace(/\.pdf$/i, "");
-    const collectionName = rawName.replace(/[^a-zA-Z0-9]/g, "_");
+    const collectionName = uuidv4();
     const client = new QdrantClient({
       url: process.env.QDRANT_URL!,
       apiKey: process.env.QDRANT_API_KEY!,

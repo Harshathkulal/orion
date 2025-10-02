@@ -27,6 +27,7 @@ export default function TextInput({
   const isDisabled = question.trim() === "" || isUploading;
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [fileName, setFileName] = useState<string>("");
 
   // Auto resize textarea
   useEffect(() => {
@@ -51,9 +52,10 @@ export default function TextInput({
 
     setIsUploading(true);
     try {
-      await uploadDocument(selectedFile);
+      const fileName = await uploadDocument(selectedFile);
       toast.success(`Uploaded: ${selectedFile.name}`);
       setFile(selectedFile);
+      setFileName(fileName.id);
     } catch (err) {
       console.error(err);
       toast.error("Upload failed. Please try again.");
@@ -75,9 +77,10 @@ export default function TextInput({
 
   const handleSend = () => {
     if (isDisabled) return;
-    onSubmit({ question: question.trim(), fileName: file?.name });
+    onSubmit({ question: question.trim(), fileName: fileName });
     setQuestion("");
     setFile(null);
+    setFileName("");
   };
 
   return (
