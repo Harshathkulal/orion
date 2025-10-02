@@ -6,6 +6,7 @@ import ImageContent from "./image-content";
 import LoginDialog from "./login-dialog";
 import { useAuth } from "@/lib/auth/use-session";
 import { BaseImageProps } from "@/types/types";
+import { generateImage } from "@/services/imageService";
 
 export default function BaseImage({
   apiEndpoint,
@@ -39,17 +40,13 @@ export default function BaseImage({
     setError("Generation was stopped.");
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSubmit = async ({ question }: { question: string }) => {
     if (!isAuthenticated && messageCount >= maxFreeMessages) {
       setShowLoginDialog(true);
       return;
     }
 
-    if (!prompt.trim()) {
-      return;
-    }
+    if (!prompt.trim()) return;
 
     setInitial(false);
     setLoading(true);
@@ -60,26 +57,15 @@ export default function BaseImage({
     abortControllerRef.current = new AbortController();
 
     try {
-      const response = await fetch(apiEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt,
-          ...additionalProps,
-        }),
+      const url = await generateImage({
+        apiEndpoint,
+        prompt: question,
+        additionalProps,
         signal: abortControllerRef.current.signal,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate image");
-      }
-
-      const data = await response.json();
-      setImageUrl(data.url);
-      onImageGenerated?.(data.url);
+      setImageUrl(url);
+      onImageGenerated?.(url);
 
       if (!isAuthenticated) {
         setMessageCount((prev) => prev + 1);
