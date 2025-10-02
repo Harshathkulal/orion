@@ -73,14 +73,14 @@ export default function Navbar() {
       >
         <span>Image</span>
       </Link>
-      <Link
+      {/* <Link
         href="/rag"
         className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
           pathname === "/rag" ? "bg-muted text-primary" : "hover:bg-muted"
         }`}
       >
         <span>PDF Summarizer</span>
-      </Link>
+      </Link> */}
     </>
   );
 

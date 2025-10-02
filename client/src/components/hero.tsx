@@ -45,13 +45,13 @@ const Hero = () => {
               <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-orange-700 opacity-0 group-hover:opacity-100 transition-opacity" />
             </Button>
           </Link>
-          <Link href="/rag">
+          <Link href="/image">
             <Button
               variant="outline"
               size="lg"
               className="border-mocha-600 text-mocha-200 hover:bg-mocha-800 hover:text-white px-8 py-6 text-lg transition-colors"
             >
-              PDF Summarize
+              Image
             </Button>
           </Link>
         </div>
