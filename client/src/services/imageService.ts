@@ -13,7 +13,6 @@ export async function generateImage({
   additionalProps = {},
   signal,
 }: GenerateImageParams): Promise<string> {
-  console.log(apiEndpoint);
   const response = await fetch(`${BASE_URL}/${apiEndpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

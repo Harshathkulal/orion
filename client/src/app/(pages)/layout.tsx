@@ -1,12 +1,13 @@
-import React from 'react';
-import Navbar from '@/components/navbar';
+"use client";
+
+import React from "react";
+import SidebarLayout from "@/components/SidebarLayout";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div>
-      <Navbar />
-      <main>{children}</main>
-    </div>
+    <SidebarLayout>
+      <main className="flex-1">{children}</main>
+    </SidebarLayout>
   );
 };
 

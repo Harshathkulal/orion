@@ -63,8 +63,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log(qdrantContext)
-
     // Build conversation history (last 4 messages only)
     const limitedHistory = conversationHistory
       .slice(-4)
