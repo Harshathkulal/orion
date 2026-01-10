@@ -13,10 +13,11 @@ import { NavChats } from "@/components/nav-chats";
 import { NavContent } from "./nav-content";
 import { NavFooter } from "./nav-footer";
 import { useAuth } from "@/lib/auth/use-session";
+import { useConversations } from "@/hooks/useConversation";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth();
-  let chats=[];
+  const { conversations, conversationLoading } = useConversations();
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="justify-center px-3">
@@ -24,7 +25,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavContent />
-        <NavChats chats={chats} />
+        <NavChats
+          conversations={conversations}
+          conversationLoading={conversationLoading}
+        />
       </SidebarContent>
       <SidebarFooter>
         <NavFooter user={user} />

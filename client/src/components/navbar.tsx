@@ -5,11 +5,27 @@ import { useAuth } from "@/lib/auth/use-session";
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { LogIn, LogOut, Loader2, Settings, Menu, X } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "./ui/button";
-import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
+
+interface NavItemsProps {
+  readonly pathname: string;
+}
+
+function NavItems({ pathname }: Readonly<NavItemsProps>) {
+  return (
+    <Link
+      href="/chat"
+      className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+        pathname === "/chat" ? "bg-muted text-primary" : "hover:bg-muted"
+      }`}
+    >
+      <span>Chat</span>
+    </Link>
+  );
+}
 
 export default function Navbar() {
   const { user, isPending, isAuthenticated } = useAuth();
@@ -54,38 +70,11 @@ export default function Navbar() {
     router.push("/");
   };
 
-  const NavItems = () => (
-    <>
-      <Link
-        href="/chat"
-        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
-          pathname === "/chat" ? "bg-muted text-primary" : "hover:bg-muted"
-        }`}
-      >
-        <span>Chat</span>
-      </Link>
-
-      <Link
-        href="/image"
-        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
-          pathname === "/image" ? "bg-muted text-primary" : "hover:bg-muted"
-        }`}
-      >
-        <span>Image</span>
-      </Link>
-      {/* <Link
-        href="/rag"
-        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
-          pathname === "/rag" ? "bg-muted text-primary" : "hover:bg-muted"
-        }`}
-      >
-        <span>PDF Summarizer</span>
-      </Link> */}
-    </>
-  );
-
   return (
-    <header id="navbar" className="sticky top-0 z-50 w-full border-b bg-gradient-to-br from-orange-500/10 via-transparent to-mocha-950 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header
+      id="navbar"
+      className="sticky top-0 z-50 w-full border-b bg-gradient-to-br from-orange-500/10 via-transparent to-mocha-950 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+    >
       <div className="flex h-16 items-center justify-between px-4 w-full">
         <div className="flex items-center gap-6">
           <Link
@@ -99,7 +88,7 @@ export default function Navbar() {
         <div className="flex items-center gap-6 md:gap-8">
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6">
-            <NavItems />
+            <NavItems pathname={pathname} />
           </nav>
 
           <div className="flex items-center">
@@ -108,7 +97,8 @@ export default function Navbar() {
                 size={24}
                 className="animate-spin text-muted-foreground"
               />
-            ) : isAuthenticated ? (
+            ) : null}
+            {!isPending && isAuthenticated && (
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -177,7 +167,8 @@ export default function Navbar() {
                   </div>
                 )}
               </div>
-            ) : (
+            )}
+            {!isPending && !isAuthenticated && (
               <Link href="/login" className="hover:text-gray-300 font-medium">
                 <LogIn size={24} />
               </Link>
@@ -201,7 +192,7 @@ export default function Navbar() {
           className="md:hidden border-t bg-gradient-to-br from-orange-500/10 via-transparent to-mocha-950"
         >
           <nav className="container py-4 flex flex-col gap-3 px-4">
-            <NavItems />
+            <NavItems pathname={pathname} />
           </nav>
         </div>
       )}

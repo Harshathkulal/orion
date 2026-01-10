@@ -1,1 +1,0 @@
-ALTER TABLE "Prompt" ADD COLUMN "fileName" varchar(255);

@@ -1,29 +1,44 @@
+import { db } from "@/db/db";
+import { conversations, messages } from "@/db/schema";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { QdrantVectorStore } from "@langchain/qdrant";
+import cuid from "cuid";
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
-import { Message } from "@/types/types";
+import { auth } from "@/lib/auth";
+import { applyApiProtection } from "@/lib/middleware/api-protection";
 import { validateInput } from "@/lib/input-validation";
 import { logger } from "@/lib/logger";
-import { db } from "@/db/db";
-import { prompts } from "@/db/schema";
-import cuid from "cuid";
-import { applyApiProtection } from "@/lib/middleware/api-protection";
-import { findDocuments } from "@/lib/find-documents";
+import { Message } from "@/types/types";
+import { eq } from "drizzle-orm";
 
 /**
- * Handles POST requests to the chat interactions.
- * Validates input, checks API key, and streams responses from Google LLM.
- *
- * @param req - The incoming Next.js request object
- * @returns A stream of text responses or an error message
+ * Handles POST requests for chat (text | rag | image).
+ * Validates input, performs optional vector search, and streams responses.
  */
 export async function POST(req: NextRequest) {
   try {
-    // API protection: IP block + rate limit
+    // API protection
     const protectionResponse = await applyApiProtection(req);
     if (protectionResponse) return protectionResponse;
 
+    // Auth
+    const authData = await auth.api.getSession({ headers: req.headers });
+    const userId = authData?.session?.userId;
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // Parse input
-    const { question, conversationHistory = [], fileName } = await req.json();
+    const body = await req.json();
+    const {
+      question,
+      conversationHistory = [],
+      conversationId,
+      isImage = false,
+      isRag = false,
+      collectionName,
+    } = body;
 
     // Validate input
     const validationResult = validateInput({
@@ -34,104 +49,163 @@ export async function POST(req: NextRequest) {
     });
 
     if (!validationResult.valid) {
-      return new NextResponse(
-        JSON.stringify({
-          message: "Invalid input",
-          details: validationResult.errors,
-        }),
+      return NextResponse.json(
+        { message: "Invalid input", details: validationResult.errors },
         { status: 400 }
       );
     }
 
-    // Check API key
-    const geminiApiKey = process.env.GEMINI_API_KEY;
-    if (!geminiApiKey) {
-      logger.error("Missing Gemini API key");
-      return new NextResponse(
-        JSON.stringify({ error: "Server configuration error" }),
-        { status: 500 }
+    // Resolve chat type
+    let chatType: "text" | "rag" | "image";
+
+    if (isImage) {
+      chatType = "image";
+    } else if (isRag) {
+      chatType = "rag";
+    } else {
+      chatType = "text";
+    }
+
+    /* ======================================================
+       CONVERSATION
+    ====================================================== */
+
+    let currentConversationId = conversationId ?? null;
+
+    // Check if conversation exists (must belong to user)
+    const existingConversation = currentConversationId
+      ? await db.query.conversations.findFirst({
+          where: eq(conversations.id, currentConversationId),
+        })
+      : null;
+
+    // If conversation exists → update timestamp
+    if (existingConversation) {
+      // If exists → update timestamp
+      await db
+        .update(conversations)
+        .set({ updatedAt: new Date() })
+        .where(eq(conversations.id, currentConversationId));
+    } else {
+      // If conversation DOES NOT exist → create it
+      currentConversationId = currentConversationId ?? cuid(); // fallback only if client didn't send one
+
+      await db.insert(conversations).values({
+        id: currentConversationId,
+        userId,
+        title: question.slice(0, 50) || "New Chat",
+        type: chatType,
+        documentId: chatType === "rag" ? collectionName : null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+
+    /* ======================================================
+       SAVE USER MESSAGE (SAFE NOW)
+    ====================================================== */
+
+    await db.insert(messages).values({
+      id: cuid(),
+      conversationId: currentConversationId,
+      role: "user",
+      content: question,
+      createdAt: new Date(),
+    });
+
+    /* ======================================================
+       IMAGE MODE
+    ====================================================== */
+
+    if (chatType === "image") {
+      const seed = Math.floor(Math.random() * 1_000_000);
+      const imageUrl = `${process.env.IMAGE_GENERATION_API_URL}${encodeURIComponent(
+        question
+      )}?seed=${seed}&width=512&height=512`;
+
+      await db.insert(messages).values({
+        id: cuid(),
+        conversationId: currentConversationId,
+        role: "assistant",
+        content: imageUrl,
+        createdAt: new Date(),
+      });
+
+      return NextResponse.json(
+        { url: imageUrl },
+        { headers: { "X-Conversation-Id": currentConversationId } }
       );
     }
 
-    // Fetch Qdrant context if file is provided
-    let qdrantContext = "";
-    if (fileName) {
-      try {
-        qdrantContext = await findDocuments(question, fileName);
-      } catch (err) {
-        console.error("Qdrant search failed:", err);
-      }
+    /* ======================================================
+       OPTIONAL RAG
+    ====================================================== */
+
+    let context = "";
+
+    if (chatType === "rag") {
+      const embedder = new GoogleGenerativeAIEmbeddings({
+        model: "text-embedding-004",
+        apiKey: process.env.GEMINI_API_KEY!,
+      });
+
+      const vectorStore = new QdrantVectorStore(embedder, {
+        url: process.env.QDRANT_URL!,
+        apiKey: process.env.QDRANT_API_KEY!,
+        collectionName,
+      });
+
+      const results = await vectorStore.similaritySearch(question, 5);
+      context = results.map((r) => r.pageContent).join("\n\n");
     }
 
-    // Build conversation history (last 4 messages only)
-    const limitedHistory = conversationHistory
-      .slice(-4)
-      .map((msg: Message) => ({
-        role: msg.role,
-        parts: [{ text: msg.content.slice(0, 500) }],
-      }));
+    /* ======================================================
+       MODEL
+    ====================================================== */
 
-    // Inline Qdrant context directly into the user's prompt
-    const finalPrompt =
-      fileName && qdrantContext
-        ? `Use the following document context to answer:\n\n${qdrantContext}\n\nUser Question: ${question}`
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const prompt =
+      chatType === "rag" && context
+        ? `Use ONLY this context:\n${context}\n\nQuestion:\n${question}`
         : question;
 
-    const fullConversation = [
-      ...limitedHistory,
-      { role: "user", parts: [{ text: finalPrompt }] },
-    ];
+    // Convert history to Google AI format (ensure first message is from user)
+    let history = conversationHistory.slice(-4).map((m: Message) => ({
+      role: m.role === "model" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
 
-    // Create chat with context
-    const genAI = new GoogleGenAI({ apiKey: geminiApiKey });
-    const chat = genAI.chats.create({
-      model: "gemini-2.5-flash",
-      history: fullConversation,
-    });
+    // Ensure first message is from user (Google AI requirement)
+    while (history.length > 0 && history[0].role !== "user") {
+      history = history.slice(1);
+    }
 
     let responseText = "";
-    const abortController = new AbortController();
-    const signal = abortController.signal;
 
-    // Stream response
     const stream = new ReadableStream({
       async start(controller) {
-        try {
-          const responseStream = await chat.sendMessageStream({
-            message: question,
-          });
+        const chat = model.startChat({ history });
+        const result = await chat.sendMessageStream(prompt);
 
-          for await (const chunk of responseStream) {
-            if (signal.aborted) break;
+        for await (const chunk of result.stream) {
+          const text = chunk.text();
+          if (!text) continue;
 
-            const text = chunk.text;
-            responseText += text;
-
-            const encoder = new TextEncoder();
-            controller.enqueue(encoder.encode(text));
-          }
-
-          if (!signal.aborted) {
-            // Save to DB
-            await db.insert(prompts).values({
-              id: cuid(),
-              prompt: question,
-              response: responseText,
-              createdAt: new Date(),
-              fileName: fileName ?? null,
-            });
-            controller.close();
-          }
-        } catch (error) {
-          console.error("AI error:", error);
-          controller.enqueue(
-            new TextEncoder().encode("Failed to get response. Try again.\n\n")
-          );
-          controller.close();
+          responseText += text;
+          controller.enqueue(new TextEncoder().encode(text));
         }
-      },
-      cancel() {
-        abortController.abort();
+
+        await db.insert(messages).values({
+          id: cuid(),
+          conversationId: currentConversationId!,
+          role: "assistant",
+          content: responseText,
+          createdAt: new Date(),
+        });
+
+        controller.close();
       },
     });
 
@@ -140,12 +214,11 @@ export async function POST(req: NextRequest) {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-store",
         Connection: "keep-alive",
+        "X-Conversation-Id": currentConversationId,
       },
     });
-  } catch (globalError) {
-    logger.error("Global API Error", globalError as Record<string, unknown>);
-    return new NextResponse(JSON.stringify({ message: "Server failed" }), {
-      status: 500,
-    });
+  } catch (error) {
+    logger.error("Global API Error", error as Record<string, unknown>);
+    return NextResponse.json({ message: "Server failed" }, { status: 500 });
   }
 }

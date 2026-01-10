@@ -1,3 +1,4 @@
+"use client";
 import { AppSidebar } from "@/components/app-sidebar";
 import {
   SidebarInset,
@@ -5,12 +6,20 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { useAuth } from "@/lib/auth/use-session";
 
 export default function Layout({
   children,
 }: {
   readonly children: React.ReactNode;
 }) {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return redirect("/login");
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />

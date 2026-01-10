@@ -21,7 +21,7 @@ export default function TextInput({
   onSubmit,
   loading = false,
   handleStop,
-}: TextInputProps) {
+}: Readonly<TextInputProps>) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const isDisabled = question.trim() === "" || isUploading;
@@ -75,12 +75,21 @@ export default function TextInput({
     }
   };
 
+  const isSubmittingRef = useRef(false);
+
   const handleSend = () => {
-    if (isDisabled) return;
+    if (isDisabled || isSubmittingRef.current) return;
+
+    isSubmittingRef.current = true;
     onSubmit({ question: question.trim(), fileName: fileName });
     setQuestion("");
     setFile(null);
     setFileName("");
+
+    // Release lock after short delay to allow state to settle
+    setTimeout(() => {
+      isSubmittingRef.current = false;
+    }, 100);
   };
 
   return (

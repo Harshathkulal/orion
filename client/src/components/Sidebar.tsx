@@ -2,20 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquare, ImageIcon } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import UserMenu from "./UserMenu";
 
 interface SidebarProps {
   onNavigate?: () => void;
 }
 
-export default function Sidebar({ onNavigate }: SidebarProps) {
+export default function Sidebar({ onNavigate }: Readonly<SidebarProps>) {
   const pathname = usePathname();
 
-  const links = [
-    { href: "/chat", label: "Chat", icon: MessageSquare },
-    { href: "/image", label: "Image", icon: ImageIcon },
-  ];
+  const links = [{ href: "/chat", label: "Chat", icon: MessageSquare }];
 
   return (
     <div className="flex flex-col h-full">

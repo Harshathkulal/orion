@@ -7,7 +7,6 @@ import { LoadingIndicator, ErrorMessage } from "./chat/status-indicators";
 export const TextContent: React.FC<TextContentProps> = ({
   messages,
   loading,
-  initial,
   error,
   rag,
 }) => {
@@ -20,9 +19,13 @@ export const TextContent: React.FC<TextContentProps> = ({
   }, [messages, loading]);
 
   return (
-    <div id="textContent" data-testid="text-content" className="flex-1 w-full overflow-y-auto pb-20">
+    <div
+      id="textContent"
+      data-testid="text-content"
+      className="flex-1 w-full overflow-y-auto pb-20"
+    >
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {initial && !loading ? (
+        {messages.length === 0 && !loading ? (
           <WelcomeMessage isRag={!!rag} />
         ) : (
           messages.map((message, index) => (

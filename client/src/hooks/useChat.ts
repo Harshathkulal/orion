@@ -1,25 +1,112 @@
-import { useState, useRef, useCallback } from "react";
+"use client";
+
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Message } from "@/types/types";
 import { sendMessage, streamResponse } from "@/services/chatService";
 import { useAuth } from "@/lib/auth/use-session";
+import { getConversation } from "@/services/conversationService";
+import { refreshSidebar } from "@/hooks/useConversation";
 
 export function useChat(
   apiEndpoint: string,
-  maxFreeMessages = 3,
-  additionalProps = {}
+  additionalProps = {},
+  conversationId?: string | null,
+  onConversationCreated?: () => void
 ) {
   const { isAuthenticated } = useAuth();
 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [conversationHistory, setConversationHistory] = useState<Message[]>([]);
-  const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
-  const [messageCount, setMessageCount] = useState(0);
-  const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [initial, setInitial] = useState(true);
+  const [question, setQuestion] = useState("");
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [messageCount, setMessageCount] = useState(0);
+  const [fetchConversationLoading, setFetchConversationLoading] =
+    useState(false);
+
+  const [activeId, setActiveId] = useState<string | null>(
+    conversationId || null
+  );
+
+  // Sync activeId with prop when prop changes
+  useEffect(() => {
+    setActiveId(conversationId || null);
+  }, [conversationId]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hasLoadedRef = useRef(false);
+  const isCreatingRef = useRef(false);
+
+  // Load conversation when conversationId changes
+  useEffect(() => {
+    if (isCreatingRef.current) {
+      isCreatingRef.current = false;
+      return;
+    }
+
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const loadConversation = async () => {
+      if (!activeId) {
+        setMessages([]);
+        setFetchConversationLoading(false);
+        setError(null);
+        hasLoadedRef.current = false;
+        return;
+      }
+
+      setFetchConversationLoading(true);
+      setMessages([]);
+      hasLoadedRef.current = true;
+
+      if (!isAuthenticated) {
+        setFetchConversationLoading(false);
+        return;
+      }
+
+      try {
+        const conv = await getConversation(activeId);
+        if (controller.signal.aborted) return;
+
+        if (conv.messages) {
+          setMessages(
+            conv.messages.map((m) => ({
+              role: m.role === "model" ? "model" : "user",
+              content: m.content,
+            }))
+          );
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        console.log("Conversation likely new or error:", err);
+      } finally {
+        if (!controller.signal.aborted) {
+          setFetchConversationLoading(false);
+        }
+      }
+    };
+
+    loadConversation();
+
+    return () => controller.abort();
+  }, [activeId, isAuthenticated]);
+
+  // Listen for NEW CHAT event
+  useEffect(() => {
+    const handleNewChatEvent = () => {
+      setActiveId(null);
+      setMessages([]);
+      setLoading(false);
+      setError(null);
+      setQuestion("");
+    };
+
+    globalThis.addEventListener("nav-new-chat", handleNewChatEvent);
+    return () =>
+      globalThis.removeEventListener("nav-new-chat", handleNewChatEvent);
+  }, []);
 
   const handleStop = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -27,86 +114,118 @@ export function useChat(
     setLoading(false);
   }, []);
 
-  const showError = useCallback((message: string) => {
-    setError(message);
-    setMessages((prev) => [
-      ...prev,
-      { role: "model", content: message, isError: true },
-    ]);
-    setLoading(false);
-  }, []);
-
   const handleSubmit = async (payload: {
     question: string;
     fileName?: string;
+    isImage?: boolean;
+    isRag?: boolean;
+    collectionName?: string;
   }) => {
     const trimmed = payload.question.trim();
-    if (!trimmed) return;
+    if (!trimmed || loading) return;
 
-    if (!isAuthenticated && messageCount >= maxFreeMessages) {
+    if (!isAuthenticated && messageCount >= 3) {
       setShowLoginDialog(true);
       return;
     }
 
+    let currentConversationId = activeId;
+    const isNewConversation = !currentConversationId;
+
+    if (isNewConversation) {
+      currentConversationId = crypto.randomUUID();
+      isCreatingRef.current = true;
+      setActiveId(currentConversationId);
+    }
+
+    if (!currentConversationId) return;
+
     const userMessage: Message = { role: "user", content: trimmed };
     setMessages((prev) => [...prev, userMessage]);
-    setConversationHistory((prev) => [...prev, userMessage]);
-    setInitial(false);
     setLoading(true);
     setError(null);
     setQuestion("");
 
+    if (isNewConversation) {
+      globalThis.history.replaceState(
+        null,
+        "",
+        `/chat/${currentConversationId}`
+      );
+
+      let type = "text";
+      if (payload.isImage) type = "image";
+      else if (payload.isRag) type = "rag";
+
+      refreshSidebar({
+        id: currentConversationId,
+        title: trimmed.substring(0, 50) || "New Chat",
+        type,
+        documentId: null,
+        updatedAt: new Date(),
+      });
+    }
+
     try {
       const response = await sendMessage(apiEndpoint, {
         question: trimmed,
+        conversationHistory: messages,
+        conversationId: currentConversationId,
         fileName: payload.fileName,
-        conversationHistory,
+        isImage: payload.isImage ?? false,
+        isRag: payload.isRag ?? false,
+        collectionName: payload.collectionName ?? null,
         ...additionalProps,
       });
 
-      const modelMessage: Message = { role: "model", content: "" };
-      setMessages((prev) => [...prev, modelMessage]);
+      setMessages((prev) => [...prev, { role: "model", content: "" }]);
 
-      const finalText = await streamResponse(response, (text) => {
+      const finalContent = await streamResponse(response, (text) => {
         setMessages((prev) => {
-          const updated = [...prev];
-          const last = updated[updated.length - 1];
+          const next = [...prev];
+          const last = next.at(-1);
           if (last?.role === "model") last.content = text;
-          return updated;
+          return next;
         });
       });
 
-      setConversationHistory((prev) => [
-        ...prev,
-        userMessage,
-        { role: "model", content: finalText },
-      ]);
+      setMessages((prev) => {
+        const next = [...prev];
+        const last = next.at(-1);
+        if (last?.role === "model") last.content = finalContent;
+        return next;
+      });
 
-      if (!isAuthenticated) {
-        setMessageCount((prev) => {
-          const next = prev + 1;
-          if (next >= maxFreeMessages) setShowLoginDialog(true);
-          return next;
-        });
-      }
+      if (!isAuthenticated) setMessageCount((c) => c + 1);
+
+      refreshSidebar();
+      onConversationCreated?.();
     } catch (err) {
-      console.error("Submit error:", err);
-      showError(err instanceof Error ? err.message : "Unexpected error");
+      console.error("Chat error:", err);
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
+
+  const resetChat = useCallback(() => {
+    setMessages([]);
+    setLoading(false);
+    setError(null);
+    hasLoadedRef.current = false;
+  }, []);
 
   return {
     messages,
     question,
     setQuestion,
     loading,
-    initial,
     error,
     showLoginDialog,
     setShowLoginDialog,
     handleSubmit,
     handleStop,
+    resetChat,
+    fetchConversationLoading,
   };
 }

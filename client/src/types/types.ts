@@ -1,7 +1,6 @@
 export interface TextContentProps {
   messages: Message[];
   loading: boolean;
-  initial: boolean;
   error: string | null;
   rag?: string;
 }

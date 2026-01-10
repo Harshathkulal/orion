@@ -1,6 +1,7 @@
 "use client";
 
 import { SquarePen, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   SidebarGroup,
   SidebarMenu,
@@ -9,12 +10,19 @@ import {
 } from "@/components/ui/sidebar";
 
 export function NavContent() {
+  const router = useRouter();
+
+  const handleNewChat = () => {
+    router.push("/chat");
+    // Force reset via event since router might not trigger update if already at /chat
+    globalThis.dispatchEvent(new Event("nav-new-chat"));
+  };
+
   return (
     <SidebarGroup>
-      {/* Always visible actions */}
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton tooltip="New chat">
+          <SidebarMenuButton tooltip="New chat" onClick={handleNewChat}>
             <SquarePen />
             <span>New chat</span>
           </SidebarMenuButton>

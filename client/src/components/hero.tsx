@@ -31,27 +31,18 @@ const Hero = () => {
           summaries of any PDF — all in one workspace.
         </p>
 
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in-up [animation-delay:600ms]">
+        {/* CTA Button */}
+        <div className="flex justify-center items-center animate-fade-in-up [animation-delay:600ms]">
           <Link href="/chat">
             <Button
               size="lg"
               className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-8 py-6 text-lg group relative overflow-hidden"
             >
               <span className="relative z-10 flex items-center">
-                Chat
+                Get Started
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-orange-600 to-orange-700 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </Button>
-          </Link>
-          <Link href="/image">
-            <Button
-              variant="outline"
-              size="lg"
-              className="border-mocha-600 text-mocha-200 hover:bg-mocha-800 hover:text-white px-8 py-6 text-lg transition-colors"
-            >
-              Image
             </Button>
           </Link>
         </div>
