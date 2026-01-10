@@ -143,18 +143,12 @@ export async function POST(req: NextRequest) {
     if (tempPath) {
       try {
         await unlink(tempPath);
-      } catch (cleanupErr) {
+      } catch (error) {
         logger.error(
           "Failed to delete temp file:",
-          cleanupErr as Record<string, unknown>
+          error as Record<string, unknown>
         );
       }
     }
   }
 }
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};

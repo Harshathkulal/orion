@@ -73,6 +73,7 @@ export function useChat(
         if (conv.messages) {
           setMessages(
             conv.messages.map((m) => ({
+              id: m.id,
               role: m.role === "model" ? "model" : "user",
               content: m.content,
             }))
@@ -140,7 +141,7 @@ export function useChat(
 
     if (!currentConversationId) return;
 
-    const userMessage: Message = { role: "user", content: trimmed };
+    const userMessage: Message = { id: crypto.randomUUID(), role: "user", content: trimmed };
     setMessages((prev) => [...prev, userMessage]);
     setLoading(true);
     setError(null);
@@ -178,7 +179,7 @@ export function useChat(
         ...additionalProps,
       });
 
-      setMessages((prev) => [...prev, { role: "model", content: "" }]);
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "model", content: "" }]);
 
       const finalContent = await streamResponse(response, (text) => {
         setMessages((prev) => {

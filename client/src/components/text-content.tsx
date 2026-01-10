@@ -28,8 +28,8 @@ export const TextContent: React.FC<TextContentProps> = ({
         {messages.length === 0 && !loading ? (
           <WelcomeMessage isRag={!!rag} />
         ) : (
-          messages.map((message, index) => (
-            <MessageBubble key={index} message={message} />
+          messages.map((message) => (
+            <MessageBubble key={message.id} message={message} />
           ))
         )}
         {loading && <LoadingIndicator />}

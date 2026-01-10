@@ -31,8 +31,8 @@ const Features = () => {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Some Features for
-            <span className="gradient-text"> Smart Conversations</span>
+            Some Features for{" "}
+            <span className="gradient-text">Smart Conversations</span>
           </h2>
           <p className="text-xl text-mocha-200 max-w-2xl mx-auto">
             Under the hood, we use the Google Gemini AI models to make sure you
@@ -42,9 +42,9 @@ const Features = () => {
 
         {/* Main Features */}
         <div className="grid md:grid-cols-3 gap-8">
-          {mainFeatures.map((feature, index) => (
+          {mainFeatures.map((feature) => (
             <div
-              key={index}
+              key={feature.title}
               className="text-center p-6 rounded-xl bg-mocha-900/30 border border-mocha-800 hover:border-orange-500/30 transition-all duration-300 hover:transform hover:scale-105"
             >
               <div className="w-12 h-12 rounded-lg bg-orange-500/20 mx-auto mb-4 flex items-center justify-center">

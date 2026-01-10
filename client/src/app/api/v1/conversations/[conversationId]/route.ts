@@ -4,9 +4,13 @@ import { conversations, messages } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 
+type Params = {
+  conversationId: string;
+};
+
 export async function GET(
   req: NextRequest,
-  context: { params: { conversationId: string } }
+  { params }: { params: Promise<Params> }
 ) {
   try {
     // Auth
@@ -16,14 +20,14 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { conversationId } = await context.params;
+    const { conversationId } = await params;
 
     // Fetch conversation
     const conversation = await db.query.conversations.findFirst({
       where: eq(conversations.id, conversationId),
     });
 
-    if (!conversation || conversation.userId !== userId) {
+    if (!conversation || conversation?.userId !== userId) {
       return NextResponse.json(
         { error: "Conversation not found" },
         { status: 404 }

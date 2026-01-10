@@ -11,7 +11,7 @@ export default function DocumentManager({
   selectedDocumentId,
   onDocumentUpload,
   onDocumentDelete,
-}: DocumentManagerProps) {
+}: Readonly<DocumentManagerProps>) {
   const [isUploading, setIsUploading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 

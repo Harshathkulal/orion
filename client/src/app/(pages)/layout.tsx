@@ -14,10 +14,21 @@ export default function Layout({
 }: {
   readonly children: React.ReactNode;
 }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isPending } = useAuth();
+
+   if (isPending) {
+    return (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <span className="animate-spin h-6 w-6 rounded-full border-2 border-muted-foreground border-t-transparent" />
+          <span className="ml-2 text-muted-foreground text-sm">
+            Loading...
+          </span>
+        </div>
+      );
+  }
 
   if (!isAuthenticated) {
-    return redirect("/login");
+    redirect("/login");
   }
 
   return (
