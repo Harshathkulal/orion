@@ -147,7 +147,9 @@ export default function Navbar() {
 
                     <div className="flex flex-col gap-1 px-2 py-2">
                       <Button
-                        onClick={() => {}}
+                        onClick={() => {
+                          router.push("/account");
+                        }}
                         variant="ghost"
                         className="w-full justify-start text-sm h-9"
                       >

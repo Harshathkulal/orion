@@ -1,5 +1,4 @@
 import api from "@/lib/axios";
-const BASE_URL = process.env.NEXT_PUBLIC_EXPRESS_API_URL!;
 
 export interface Conversation {
   id: string;
@@ -22,7 +21,7 @@ export async function createConversation(
   type: string = "text",
   documentId?: string
 ): Promise<Conversation> {
-  const response = await api.post(`${BASE_URL}/conversations`, {
+  const response = await api.post(`/conversations`, {
     title,
     type,
     documentId,
@@ -31,20 +30,20 @@ export async function createConversation(
 }
 
 export async function getConversations(): Promise<Conversation[]> {
-  const response = await api.get(`${BASE_URL}/conversations`);
+  const response = await api.get(`/conversations`);
   return response.data;
 }
 
 export async function getConversation(
   conversationId: string
 ): Promise<Conversation> {
-  const response = await api.get(`${BASE_URL}/conversations/${conversationId}`);
+  const response = await api.get(`/conversations/${conversationId}`);
   return response.data;
 }
 
 export async function deleteConversation(
   conversationId: string
 ): Promise<void> {
-  await api.delete(`${BASE_URL}/conversations/${conversationId}`);
+  await api.delete(`/conversations/${conversationId}`);
 }
 

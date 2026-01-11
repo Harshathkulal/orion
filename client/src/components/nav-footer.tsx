@@ -16,6 +16,10 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
+import { Button } from "./ui/button";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+import { toast } from "sonner";
 
 type NavUser = {
   name: string;
@@ -25,6 +29,18 @@ type NavUser = {
 
 export function NavFooter({ user }: { readonly user: NavUser | null }) {
   const { isMobile } = useSidebar();
+  const router = useRouter();
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    const logout = await authClient.signOut();
+    if (logout.error) {
+      toast.error("Logged out Failed, Try again");
+      return;
+    }
+    toast.success("Logged out successfully");
+    router.push("/");
+  };
 
   if (!user) {
     return (
@@ -91,15 +107,29 @@ export function NavFooter({ user }: { readonly user: NavUser | null }) {
             <DropdownMenuSeparator />
 
             <DropdownMenuItem>
-              <BadgeCheck />
-              Account
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => {
+                  router.push("/account");
+                }}
+              >
+                <BadgeCheck />
+                <span>Account</span>
+              </Button>
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
 
             <DropdownMenuItem>
-              <LogOut />
-              Log out
+              <Button
+                onClick={handleSignOut}
+                variant="ghost"
+                className="w-full justify-start text-red-500 hover:text-red-500"
+              >
+                <LogOut size={16} className="mr-2" />
+                <span>Sign out</span>
+              </Button>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

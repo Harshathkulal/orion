@@ -93,7 +93,7 @@ export default function TextInput({
   };
 
   return (
-    <div className="sticky bottom-0 group/thread-bottom-container relative isolate z-40 w-full basis-auto has-data-has-thread-error:pt-2 has-data-has-thread-error:[box-shadow:var(--sharp-edge-bottom-shadow)] md:border-transparent md:pt-0 dark:border-white/20 md:dark:border-transparent print:hidden content-fade single-line flex flex-col">
+    <div className="sticky bottom-0 group/thread-bottom-container isolate z-40 w-full basis-auto has-data-has-thread-error:pt-2 has-data-has-thread-error:[box-shadow:var(--sharp-edge-bottom-shadow)] md:border-transparent md:pt-0 dark:border-white/20 md:dark:border-transparent print:hidden content-fade single-line flex flex-col">
       <div className="max-w-4xl mx-auto w-full p-4">
         <div className="flex items-center gap-2 rounded-2xl border border-input bg-card px-3 py-2 shadow-sm">
           <label className="cursor-pointer shrink-0 flex items-center justify-center">
