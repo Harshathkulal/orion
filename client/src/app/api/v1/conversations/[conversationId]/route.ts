@@ -46,6 +46,9 @@ export async function GET(
         id: m.id,
         role: m.role === "assistant" ? "model" : m.role,
         content: m.content,
+        fileName: m.fileName ?? null,
+        isRag: Boolean(m.isRag),
+        isImage: Boolean(m.isImage),
         createdAt: m.createdAt,
       })),
     });

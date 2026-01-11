@@ -31,10 +31,9 @@ export async function streamResponse(
 }
 
 export async function sendMessage(
-  apiEndpoint: string,
   payload: ChatPayload
 ): Promise<Response> {
-  const response = await fetch(`${BASE_URL}/${apiEndpoint}`, {
+  const response = await fetch(`${BASE_URL}/text`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

@@ -127,6 +127,10 @@ export const messages = pgTable(
       .$type<"user" | "assistant" | "system">()
       .notNull(),
 
+    fileName: varchar("file_name", { length: 255 }),
+    isRag: boolean("is_rag").default(false),
+    isImage: boolean("is_image").default(false),
+
     content: text("content").notNull(),
 
     createdAt: timestamp("created_at").defaultNow().notNull(),

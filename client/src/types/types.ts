@@ -9,6 +9,9 @@ export interface Message {
   id: string;
   role: 'user' | 'model';
   content: string;
+  fileName?: string;
+  isRag?: boolean;
+  isImage?: boolean;
 }
 
 export interface CodeBlockProps {
@@ -94,3 +97,14 @@ export interface ChatPayload {
   conversationHistory: Message[];
   [key: string]: unknown;
 }
+
+export type UiMessage = {
+  id: string;
+  role: "user" | "model";
+  content: string;
+};
+
+export type ConversationItem = {
+  role: "user" | "assistant";
+  content: string;
+};

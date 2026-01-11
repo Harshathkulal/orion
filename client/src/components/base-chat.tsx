@@ -8,9 +8,7 @@ import { BaseChatProps } from "@/types/types";
 import { useChat } from "@/hooks/useChat";
 
 export default function BaseChat({
-  apiEndpoint,
   conversationId,
-  onConversationCreated,
 }: Readonly<
   BaseChatProps & {
     conversationId?: string | null;
@@ -28,7 +26,7 @@ export default function BaseChat({
     handleSubmit,
     handleStop,
     fetchConversationLoading,
-  } = useChat(apiEndpoint, {}, conversationId, onConversationCreated);
+  } = useChat(conversationId);
 
   return (
     <div

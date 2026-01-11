@@ -14,6 +14,9 @@ export interface Message {
   role: "user" | "model";
   content: string;
   createdAt: Date;
+  fileName?: string;
+  isRag?: boolean;
+  isImage?: boolean;
 }
 
 export async function createConversation(

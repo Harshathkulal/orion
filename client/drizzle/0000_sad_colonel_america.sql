@@ -1,8 +1,8 @@
 CREATE TABLE "account" (
-	"id" text PRIMARY KEY NOT NULL,
+	"id" varchar(36) PRIMARY KEY NOT NULL,
 	"account_id" text NOT NULL,
 	"provider_id" text NOT NULL,
-	"user_id" text NOT NULL,
+	"user_id" varchar(36) NOT NULL,
 	"access_token" text,
 	"refresh_token" text,
 	"id_token" text,
@@ -16,9 +16,9 @@ CREATE TABLE "account" (
 --> statement-breakpoint
 CREATE TABLE "conversations" (
 	"id" varchar(36) PRIMARY KEY NOT NULL,
-	"user_id" text NOT NULL,
+	"user_id" varchar(36) NOT NULL,
 	"title" varchar(255),
-	"type" varchar(50) DEFAULT 'text' NOT NULL,
+	"type" varchar(20) DEFAULT 'text' NOT NULL,
 	"document_id" varchar(36),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
@@ -29,8 +29,8 @@ CREATE TABLE "documents" (
 	"name" varchar(255) NOT NULL,
 	"collection_name" varchar(255) NOT NULL,
 	"chunk_count" integer NOT NULL,
-	"user_id" text,
-	"uploaded_at" timestamp DEFAULT now() NOT NULL
+	"user_id" varchar(36),
+	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "images" (
@@ -38,12 +38,12 @@ CREATE TABLE "images" (
 	"prompt" text NOT NULL,
 	"url" text,
 	"seed" serial NOT NULL,
-	"user_id" text,
+	"user_id" varchar(36),
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "jwks" (
-	"id" text PRIMARY KEY NOT NULL,
+	"id" varchar(36) PRIMARY KEY NOT NULL,
 	"public_key" text NOT NULL,
 	"private_key" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
@@ -53,6 +53,9 @@ CREATE TABLE "messages" (
 	"id" varchar(36) PRIMARY KEY NOT NULL,
 	"conversation_id" varchar(36) NOT NULL,
 	"role" varchar(20) NOT NULL,
+	"file_name" varchar(255),
+	"is_rag" boolean DEFAULT false,
+	"is_image" boolean DEFAULT false,
 	"content" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
@@ -63,14 +66,14 @@ CREATE TABLE "prompts" (
 	"response" text,
 	"url" text,
 	"seed" serial NOT NULL,
-	"user_id" text,
+	"user_id" varchar(36),
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "session" (
-	"id" text PRIMARY KEY NOT NULL,
+	"id" varchar(36) PRIMARY KEY NOT NULL,
 	"token" text NOT NULL,
-	"user_id" text NOT NULL,
+	"user_id" varchar(36) NOT NULL,
 	"expires_at" timestamp NOT NULL,
 	"ip_address" text,
 	"user_agent" text,
@@ -80,7 +83,7 @@ CREATE TABLE "session" (
 );
 --> statement-breakpoint
 CREATE TABLE "user" (
-	"id" text PRIMARY KEY NOT NULL,
+	"id" varchar(36) PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"email" text NOT NULL,
 	"email_verified" boolean DEFAULT false NOT NULL,
@@ -91,7 +94,7 @@ CREATE TABLE "user" (
 );
 --> statement-breakpoint
 CREATE TABLE "verification" (
-	"id" text PRIMARY KEY NOT NULL,
+	"id" varchar(36) PRIMARY KEY NOT NULL,
 	"identifier" text NOT NULL,
 	"value" text NOT NULL,
 	"expires_at" timestamp NOT NULL,
@@ -106,5 +109,8 @@ ALTER TABLE "images" ADD CONSTRAINT "images_user_id_user_id_fk" FOREIGN KEY ("us
 ALTER TABLE "messages" ADD CONSTRAINT "messages_conversation_id_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "prompts" ADD CONSTRAINT "prompts_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "conversations_user_idx" ON "conversations" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "conversations_updated_at_idx" ON "conversations" USING btree ("updated_at");--> statement-breakpoint
+CREATE INDEX "documents_user_idx" ON "documents" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "messages_conversation_idx" ON "messages" USING btree ("conversation_id");--> statement-breakpoint
 CREATE INDEX "messages_created_at_idx" ON "messages" USING btree ("created_at");

@@ -7,12 +7,7 @@ import { useAuth } from "@/lib/auth/use-session";
 import { getConversation } from "@/services/conversationService";
 import { refreshSidebar } from "@/hooks/useConversation";
 
-export function useChat(
-  apiEndpoint: string,
-  additionalProps = {},
-  conversationId?: string | null,
-  onConversationCreated?: () => void
-) {
+export function useChat(conversationId?: string | null) {
   const { isAuthenticated } = useAuth();
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -76,12 +71,15 @@ export function useChat(
               id: m.id,
               role: m.role === "model" ? "model" : "user",
               content: m.content,
+              fileName: m.fileName ?? undefined,
+              isRag: m.isRag ?? false,
+              isImage: m.isImage ?? false,
             }))
           );
         }
       } catch (err) {
         if (controller.signal.aborted) return;
-        console.log("Conversation likely new or error:", err);
+        console.error("Conversation likely new or error:", err);
       } finally {
         if (!controller.signal.aborted) {
           setFetchConversationLoading(false);
@@ -122,7 +120,9 @@ export function useChat(
     isRag?: boolean;
     collectionName?: string;
   }) => {
-    const trimmed = payload.question.trim();
+    const trimmed =
+      payload.question.trim() ||
+      (payload.isRag && payload.fileName ? `Analyze ${payload.fileName}` : "");
     if (!trimmed || loading) return;
 
     if (!isAuthenticated && messageCount >= 3) {
@@ -141,7 +141,14 @@ export function useChat(
 
     if (!currentConversationId) return;
 
-    const userMessage: Message = { id: crypto.randomUUID(), role: "user", content: trimmed };
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: trimmed,
+      fileName: payload.fileName,
+      isRag: payload.isRag,
+      isImage: payload.isImage,
+    };
     setMessages((prev) => [...prev, userMessage]);
     setLoading(true);
     setError(null);
@@ -168,7 +175,7 @@ export function useChat(
     }
 
     try {
-      const response = await sendMessage(apiEndpoint, {
+      const response = await sendMessage({
         question: trimmed,
         conversationHistory: messages,
         conversationId: currentConversationId,
@@ -176,10 +183,12 @@ export function useChat(
         isImage: payload.isImage ?? false,
         isRag: payload.isRag ?? false,
         collectionName: payload.collectionName ?? null,
-        ...additionalProps,
       });
 
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "model", content: "" }]);
+      setMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), role: "model", content: "" },
+      ]);
 
       const finalContent = await streamResponse(response, (text) => {
         setMessages((prev) => {
@@ -200,7 +209,6 @@ export function useChat(
       if (!isAuthenticated) setMessageCount((c) => c + 1);
 
       refreshSidebar();
-      onConversationCreated?.();
     } catch (err) {
       console.error("Chat error:", err);
       setError(err instanceof Error ? err.message : "Something went wrong");

@@ -10,7 +10,13 @@ import { uploadDocument, deleteDocument } from "@/services/documentService";
 interface TextInputProps {
   question: string;
   setQuestion: (q: string) => void;
-  onSubmit: (payload: { question: string; fileName?: string }) => void;
+  onSubmit: (payload: {
+    question: string;
+    fileName?: string;
+    isImage?: boolean;
+    isRag?: boolean;
+    collectionName?: string;
+  }) => void;
   loading?: boolean;
   handleStop?: () => void;
 }
@@ -81,7 +87,13 @@ export default function TextInput({
     if (isDisabled || isSubmittingRef.current) return;
 
     isSubmittingRef.current = true;
-    onSubmit({ question: question.trim(), fileName: fileName });
+    onSubmit({
+      question: question.trim(),
+      fileName: file?.name,
+      isImage: false,
+      isRag: !!fileName,
+      collectionName: fileName,
+    });
     setQuestion("");
     setFile(null);
     setFileName("");
