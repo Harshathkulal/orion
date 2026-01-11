@@ -8,22 +8,25 @@ import { BaseChatProps } from "@/types/types";
 import { useChat } from "@/hooks/useChat";
 
 export default function BaseChat({
-  apiEndpoint,
-  maxFreeMessages = 3,
-  additionalProps = {},
-}: Readonly<BaseChatProps>) {
+  conversationId,
+}: Readonly<
+  BaseChatProps & {
+    conversationId?: string | null;
+    onConversationCreated?: () => void;
+  }
+>) {
   const {
     messages,
     question,
     setQuestion,
     loading,
-    initial,
     error,
     showLoginDialog,
     setShowLoginDialog,
     handleSubmit,
     handleStop,
-  } = useChat(apiEndpoint, maxFreeMessages, additionalProps);
+    fetchConversationLoading,
+  } = useChat(conversationId);
 
   return (
     <div
@@ -31,8 +34,16 @@ export default function BaseChat({
       data-testid="base-chat"
       className="flex flex-col h-full max-w-4xl mx-auto w-full"
     >
+      {fetchConversationLoading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <span className="animate-spin h-6 w-6 rounded-full border-2 border-muted-foreground border-t-transparent" />
+          <span className="ml-2 text-muted-foreground text-sm">
+            Loading conversation...
+          </span>
+        </div>
+      )}
       <div className="flex-1">
-        <TextContent messages={messages} loading={loading} initial={initial} error={error} />
+        <TextContent messages={messages} loading={loading} error={error} />
       </div>
       <TextInput
         question={question}

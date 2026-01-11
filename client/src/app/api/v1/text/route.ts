@@ -1,172 +1,239 @@
-import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db/db";
+import { conversations, messages } from "@/db/schema";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { Message } from "@/types/types";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { QdrantVectorStore } from "@langchain/qdrant";
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { applyApiProtection } from "@/lib/middleware/api-protection";
 import { validateInput } from "@/lib/input-validation";
 import { logger } from "@/lib/logger";
-import { db } from "@/db/db";
-import { prompts } from "@/db/schema";
+import { ConversationItem, UiMessage } from "@/types/types";
+import { eq } from "drizzle-orm";
 import cuid from "cuid";
-import { applyApiProtection } from "@/lib/middleware/api-protection";
 
-/**
- * Handles POST requests to the chat interactions.
- * Validates input, checks API key, and streams responses from Google LLM.
- *
- * @param req - The incoming Next.js request object
- * @returns A stream of text responses or an error message
- */
+/* ======================================================
+   HELPERS
+====================================================== */
+
+function normalizeHistory(history: UiMessage[]): ConversationItem[] {
+  return history.map((m) => ({
+    role: m.role === "model" ? "assistant" : "user",
+    content: m.content,
+  }));
+}
+
+async function upsertConversation({
+  conversationId,
+  userId,
+  title,
+  type,
+  documentId,
+}: {
+  conversationId?: string | null;
+  userId: string;
+  title: string;
+  type: "text" | "rag" | "image";
+  documentId?: string | null;
+}): Promise<string> {
+  if (conversationId) {
+    const existing = await db.query.conversations.findFirst({
+      where: eq(conversations.id, conversationId),
+    });
+
+    if (existing) {
+      await db
+        .update(conversations)
+        .set({ updatedAt: new Date() })
+        .where(eq(conversations.id, conversationId));
+
+      return conversationId;
+    }
+  }
+
+  const id = conversationId ?? cuid();
+
+  await db.insert(conversations).values({
+    id,
+    userId,
+    title,
+    type,
+    documentId,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  return id;
+}
+
+/* ======================================================
+   ROUTE
+====================================================== */
+
 export async function POST(req: NextRequest) {
   try {
-    // API protection: IP block + rate limit
-    const protectionResponse = await applyApiProtection(req);
-    if (protectionResponse) return protectionResponse;
+    const protection = await applyApiProtection(req);
+    if (protection) return protection;
 
-    // Parse input
-    const { question, conversationHistory } = await req.json();
+    const session = await auth.api.getSession({ headers: req.headers });
+    const userId = session?.session?.userId;
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    // Validate input
-    const validationResult = validateInput({
+    const body = await req.json();
+    const {
       question,
-      conversationHistory,
+      conversationHistory = [],
+      conversationId,
+      isImage,
+      isRag,
+      collectionName,
+      fileName
+    } = body;
+
+    const normalizedHistory = normalizeHistory(conversationHistory);
+
+    const validation = validateInput({
+      question,
+      conversationHistory: normalizedHistory,
       maxLength: 1000,
       allowedCharacters: /^[a-zA-Z0-9\s.,!?()-]+$/,
     });
 
-    if (!validationResult.valid) {
-      return new NextResponse(
-        JSON.stringify({
-          message: "Invalid input",
-          details: validationResult.errors,
-        }),
+    if (!validation.valid) {
+      return NextResponse.json(
+        { message: "Invalid input", errors: validation.errors },
         { status: 400 }
       );
     }
 
-    // Check API key
-    const geminiApiKey = process.env.GEMINI_API_KEY;
-    if (!geminiApiKey) {
-      logger.error("Missing Gemini API key");
-      return new NextResponse(
-        JSON.stringify({ error: "Server configuration error" }),
-        { status: 500 }
+    let chatType: "text" | "rag" | "image" = "text";
+    if (isImage) {
+      chatType = "image";
+    } else if (isRag) {
+      chatType = "rag";
+    }
+
+    const currentConversationId = await upsertConversation({
+      conversationId,
+      userId,
+      title: question.slice(0, 50) || "New Chat",
+      type: chatType,
+      documentId: chatType === "rag" ? collectionName : null,
+    });
+
+    await db.insert(messages).values({
+      id: cuid(),
+      conversationId: currentConversationId,
+      role: "user",
+      content: question,
+      isRag: chatType === "rag",
+      isImage: false,
+      fileName: chatType === "rag" ? fileName : null,
+      createdAt: new Date(),
+    });
+
+    /* ================= IMAGE ================= */
+
+    if (chatType === "image") {
+      const seed = Math.floor(Math.random() * 1_000_000);
+      const url = `${process.env.IMAGE_GENERATION_API_URL}${encodeURIComponent(
+        question
+      )}?seed=${seed}&width=512&height=512`;
+
+      await db.insert(messages).values({
+        id: cuid(),
+        conversationId: currentConversationId,
+        role: "assistant",
+        content: url,
+        isImage: true,
+        isRag: false,
+        fileName: null,
+        createdAt: new Date(),
+      });
+
+      return NextResponse.json(
+        { url },
+        { headers: { "X-Conversation-Id": currentConversationId } }
       );
     }
 
-    // Initialize Google model
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
-    });
+    /* ================= RAG ================= */
 
-    // Prepare conversation context (limited to last 4 messages)
-    const limitedHistory = conversationHistory
-      .slice(-4)
-      .map((msg: Message) => ({
-        role: msg.role,
-        parts: [{ text: msg.content.slice(0, 500) }],
-      }));
+    let context = "";
 
-    const fullConversation = [
-      ...limitedHistory,
-      { role: "user", parts: [{ text: question }] },
-    ];
+    if (chatType === "rag") {
+      const embedder = new GoogleGenerativeAIEmbeddings({
+        model: "text-embedding-004",
+        apiKey: process.env.GEMINI_API_KEY!,
+      });
+
+      const store = new QdrantVectorStore(embedder, {
+        url: process.env.QDRANT_URL!,
+        apiKey: process.env.QDRANT_API_KEY!,
+        collectionName,
+      });
+
+      const results = await store.similaritySearch(question, 5);
+      context = results.map((r) => r.pageContent).join("\n\n");
+    }
+
+    /* ================= STREAM ================= */
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const prompt =
+      chatType === "rag" && context
+        ? `Use ONLY this context:\n${context}\n\nQuestion:\n${question}`
+        : question;
 
     let responseText = "";
 
-    // Abort controller for streaming
-    const abortController = new AbortController();
-    const signal = abortController.signal;
-
     const stream = new ReadableStream({
       async start(controller) {
-        try {
-          const chat = model.startChat({ history: fullConversation });
-          const result = await chat.sendMessageStream(question);
+        const chat = model.startChat({
+          history: normalizedHistory.map((m) => ({
+            role: m.role === "assistant" ? "model" : "user",
+            parts: [{ text: m.content }],
+          })),
+        });
 
-          if (signal.aborted) {
-            controller.close();
-            return;
-          }
+        const result = await chat.sendMessageStream(prompt);
 
-          if (!result || !result.stream) {
-            throw new Error("Invalid response from model");
-          }
-
-          for await (const chunk of result.stream) {
-            if (signal.aborted) break;
-
-            if (!chunk || !chunk.text) continue;
-
-            const text = chunk.text();
-            responseText += text;
-
-            try {
-              const encoder = new TextEncoder();
-              const encodedText = encoder.encode(text);
-              controller.enqueue(encodedText);
-            } catch (error) {
-              console.error("Enqueue failed:", error);
-              break;
-            }
-          }
-
-          // Save prompt and response if not aborted
-          if (!signal.aborted) {
-            try {
-              await db.insert(prompts).values({
-                id: cuid(),
-                prompt: question,
-                response: responseText,
-                createdAt: new Date(),
-              });
-            } catch (err) {
-              console.error("failed to save Chat in DB", err);
-            }
-            controller.close();
-          }
-        } catch (error) {
-          console.error("AI error:", error);
-
-          try {
-            const errorMessage =
-              error instanceof Error ? error.message : "Unknown error occurred";
-            const encoder = new TextEncoder();
-            controller.enqueue(
-              encoder.encode(JSON.stringify({ error: errorMessage }))
-            );
-          } catch (e) {
-            console.error("Failed to send error message:", e);
-          }
-
-          if (!signal.aborted) {
-            controller.close();
-          }
+        for await (const chunk of result.stream) {
+          const text = chunk.text();
+          if (!text) continue;
+          responseText += text;
+          controller.enqueue(new TextEncoder().encode(text));
         }
-      },
 
-      cancel() {
-        abortController.abort();
+        await db.insert(messages).values({
+          id: cuid(),
+          conversationId: currentConversationId,
+          role: "assistant",
+          content: responseText,
+          isRag: chatType === "rag",
+          isImage: false,
+          fileName: chatType === "rag" ? fileName : null,
+          createdAt: new Date(),
+        });
+
+        controller.close();
       },
     });
 
-    return new NextResponse(stream, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate, proxy-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
-        "X-Content-Type-Options": "nosniff",
-        "X-Frame-Options": "DENY",
-        "Referrer-Policy": "no-referrer",
-        Connection: "keep-alive",
-        "Transfer-Encoding": "chunked",
-      },
-    });
-  } catch (globalError) {
-    logger.error("Global API Error", globalError as Record<string, unknown>);
-    return new NextResponse(JSON.stringify({ message: "Server failed" }), {
-      status: 500,
-    });
+    const headers: HeadersInit = {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-store",
+      Connection: "keep-alive",
+      "X-Conversation-Id": currentConversationId,
+    };
+
+    return new NextResponse(stream, { headers });
+  } catch (err) {
+    logger.error("Chat API Error", err as Record<string, unknown>);
+    return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }

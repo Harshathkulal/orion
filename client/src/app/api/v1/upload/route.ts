@@ -13,6 +13,7 @@ import { documents } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { applyApiProtection } from "@/lib/middleware/api-protection";
 import { logger } from "@/lib/logger";
+import { v4 as uuidv4 } from "uuid";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
     if (!(file instanceof Blob)) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
-    if (!(file).type.includes("pdf")) {
+    if (!file.type.includes("pdf")) {
       return NextResponse.json(
         { error: "Only PDF files are allowed" },
         { status: 400 }
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate file size (limit: 10MB)
-    if ((file).size > 10 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) {
       return NextResponse.json(
         { error: "File size must be less than 10MB" },
         { status: 400 }
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
     // Save file temporarily
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const originalName = (file).name || "uploaded.pdf";
+    const originalName = file.name || "uploaded.pdf";
     const tempFileName = `${cuid()}.pdf`;
     tempPath = join(tmpdir(), tempFileName);
     await writeFile(tempPath, buffer);
@@ -86,8 +87,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Clean collection name and init Qdrant client
-    const rawName = originalName.replace(/\.pdf$/i, "");
-    const collectionName = rawName.replace(/[^a-zA-Z0-9]/g, "_");
+    const collectionName = uuidv4();
     const client = new QdrantClient({
       url: process.env.QDRANT_URL!,
       apiKey: process.env.QDRANT_API_KEY!,
@@ -143,18 +143,12 @@ export async function POST(req: NextRequest) {
     if (tempPath) {
       try {
         await unlink(tempPath);
-      } catch (cleanupErr) {
+      } catch (error) {
         logger.error(
           "Failed to delete temp file:",
-          cleanupErr as Record<string, unknown>
+          error as Record<string, unknown>
         );
       }
     }
   }
 }
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};

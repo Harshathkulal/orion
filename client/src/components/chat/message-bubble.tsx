@@ -2,6 +2,7 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import { CodeBlock } from "./code-block";
 import { MessageBubbleProps } from "@/types/types";
+import { Paperclip } from "lucide-react";
 
 // Custom components for Markdown rendering
 const OpenLinkInNewTab = ({
@@ -35,6 +36,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => (
           : "px-5 py-3 rounded-2xl shadow-sm"
       } max-w-[85%] overflow-hidden`}
     >
+      {message.fileName && message.isRag && (
+        <div className="mb-2 flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+          <Paperclip className="h-3.5 w-3.5" />
+          <span className="truncate">{message.fileName}</span>
+        </div>
+      )}
       <ReactMarkdown
         components={{
           code: CodeBlock,

@@ -24,7 +24,7 @@ import {
 import { signUpUser } from "@/server/user";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Rotate3d } from "lucide-react";
+import { Loader2, Orbit } from "lucide-react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
@@ -92,7 +92,7 @@ export function SignupForm({
       <Card className="border-0">
         <CardHeader>
           <CardTitle className="flex text-clip justify-center items-center gap-4">
-            <span>SignUp to Orion</span> <Rotate3d />
+            <span>SignUp to Orion</span> <Orbit />
           </CardTitle>
           <CardDescription>
             Enter your details below to create an account
