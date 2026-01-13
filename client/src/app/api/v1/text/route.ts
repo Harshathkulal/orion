@@ -13,60 +13,6 @@ import { eq } from "drizzle-orm";
 import cuid from "cuid";
 
 /* ======================================================
-   HELPERS
-====================================================== */
-
-function normalizeHistory(history: UiMessage[]): ConversationItem[] {
-  return history.map((m) => ({
-    role: m.role === "model" ? "assistant" : "user",
-    content: m.content,
-  }));
-}
-
-async function upsertConversation({
-  conversationId,
-  userId,
-  title,
-  type,
-  documentId,
-}: {
-  conversationId?: string | null;
-  userId: string;
-  title: string;
-  type: "text" | "rag" | "image";
-  documentId?: string | null;
-}): Promise<string> {
-  if (conversationId) {
-    const existing = await db.query.conversations.findFirst({
-      where: eq(conversations.id, conversationId),
-    });
-
-    if (existing) {
-      await db
-        .update(conversations)
-        .set({ updatedAt: new Date() })
-        .where(eq(conversations.id, conversationId));
-
-      return conversationId;
-    }
-  }
-
-  const id = conversationId ?? cuid();
-
-  await db.insert(conversations).values({
-    id,
-    userId,
-    title,
-    type,
-    documentId,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-
-  return id;
-}
-
-/* ======================================================
    ROUTE
 ====================================================== */
 
@@ -89,7 +35,7 @@ export async function POST(req: NextRequest) {
       isImage,
       isRag,
       collectionName,
-      fileName
+      fileName,
     } = body;
 
     const normalizedHistory = normalizeHistory(conversationHistory);
@@ -236,4 +182,58 @@ export async function POST(req: NextRequest) {
     logger.error("Chat API Error", err as Record<string, unknown>);
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
+}
+
+/* ======================================================
+   HELPERS
+====================================================== */
+
+function normalizeHistory(history: UiMessage[]): ConversationItem[] {
+  return history.map((m) => ({
+    role: m.role === "model" ? "assistant" : "user",
+    content: m.content,
+  }));
+}
+
+async function upsertConversation({
+  conversationId,
+  userId,
+  title,
+  type,
+  documentId,
+}: {
+  conversationId?: string | null;
+  userId: string;
+  title: string;
+  type: "text" | "rag" | "image";
+  documentId?: string | null;
+}): Promise<string> {
+  if (conversationId) {
+    const existing = await db.query.conversations.findFirst({
+      where: eq(conversations.id, conversationId),
+    });
+
+    if (existing) {
+      await db
+        .update(conversations)
+        .set({ updatedAt: new Date() })
+        .where(eq(conversations.id, conversationId));
+
+      return conversationId;
+    }
+  }
+
+  const id = conversationId ?? cuid();
+
+  await db.insert(conversations).values({
+    id,
+    userId,
+    title,
+    type,
+    documentId,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  return id;
 }
