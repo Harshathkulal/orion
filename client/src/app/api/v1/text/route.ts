@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     if (!validation.valid) {
       return NextResponse.json(
         { message: "Invalid input", errors: validation.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     if (chatType === "image") {
       const seed = Math.floor(Math.random() * 1_000_000);
       const url = `${process.env.IMAGE_GENERATION_API_URL}${encodeURIComponent(
-        question
+        question,
       )}?seed=${seed}&width=512&height=512`;
 
       await db.insert(messages).values({
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         { url },
-        { headers: { "X-Conversation-Id": currentConversationId } }
+        { headers: { "X-Conversation-Id": currentConversationId } },
       );
     }
 
@@ -110,19 +110,30 @@ export async function POST(req: NextRequest) {
     let context = "";
 
     if (chatType === "rag") {
-      const embedder = new GoogleGenerativeAIEmbeddings({
-        model: "text-embedding-004",
-        apiKey: process.env.GEMINI_API_KEY!,
-      });
+      try {
+        const embedder = new GoogleGenerativeAIEmbeddings({
+          model: "text-embedding-004",
+          apiKey: process.env.GEMINI_API_KEY!,
+        });
 
-      const store = new QdrantVectorStore(embedder, {
-        url: process.env.QDRANT_URL!,
-        apiKey: process.env.QDRANT_API_KEY!,
-        collectionName,
-      });
+        const store = new QdrantVectorStore(embedder, {
+          url: process.env.QDRANT_URL!,
+          apiKey: process.env.QDRANT_API_KEY!,
+          collectionName,
+        });
 
-      const results = await store.similaritySearch(question, 5);
-      context = results.map((r) => r.pageContent).join("\n\n");
+        const results = await store.similaritySearch(question, 5);
+        context = results.map((r) => r.pageContent).join("\n\n");
+      } catch (err) {
+        logger.error(
+          "RAG context retrieval error",
+          err as Record<string, unknown>,
+        );
+        return NextResponse.json(
+          { error: "Failed to retrieve document context" },
+          { status: 500 },
+        );
+      }
     }
 
     /* ================= STREAM ================= */
@@ -137,50 +148,68 @@ export async function POST(req: NextRequest) {
 
     let responseText = "";
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        const chat = model.startChat({
-          history: normalizedHistory.map((m) => ({
-            role: m.role === "assistant" ? "model" : "user",
-            parts: [{ text: m.content }],
-          })),
-        });
+    // API connection BEFORE creating the stream
+    let chat;
+    try {
+      chat = model.startChat({
+        history: normalizedHistory.map((m) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.content }],
+        })),
+      });
 
-        const result = await chat.sendMessageStream(prompt);
+      // Try to initiate the stream to catch quota/API errors early
+      const testResult = await chat.sendMessageStream(prompt);
 
-        for await (const chunk of result.stream) {
-          const text = chunk.text();
-          if (!text) continue;
-          responseText += text;
-          controller.enqueue(new TextEncoder().encode(text));
-        }
+      // Create the actual stream only if the connection works
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const chunk of testResult.stream) {
+              const text = chunk.text();
+              if (!text) continue;
+              responseText += text;
+              controller.enqueue(new TextEncoder().encode(text));
+            }
 
-        await db.insert(messages).values({
-          id: cuid(),
-          conversationId: currentConversationId,
-          role: "assistant",
-          content: responseText,
-          isRag: chatType === "rag",
-          isImage: false,
-          fileName: chatType === "rag" ? fileName : null,
-          createdAt: new Date(),
-        });
+            // Save the complete response to the database
+            await db.insert(messages).values({
+              id: cuid(),
+              conversationId: currentConversationId,
+              role: "assistant",
+              content: responseText,
+              isRag: chatType === "rag",
+              isImage: false,
+              fileName: chatType === "rag" ? fileName : null,
+              createdAt: new Date(),
+            });
 
-        controller.close();
-      },
-    });
+            controller.close();
+          } catch (err) {
+            logger.error(
+              "Stream processing error",
+              err as Record<string, unknown>,
+            );
+            controller.error(err);
+          }
+        },
+      });
 
-    const headers: HeadersInit = {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-store",
-      Connection: "keep-alive",
-      "X-Conversation-Id": currentConversationId,
-    };
+      const headers: HeadersInit = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-store",
+        Connection: "keep-alive",
+        "X-Conversation-Id": currentConversationId,
+      };
 
-    return new NextResponse(stream, { headers });
+      return new NextResponse(stream, { headers });
+    } catch (err) {
+      logger.error("Gemini API Error", err as Record<string, unknown>);
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
+    }
   } catch (err) {
     logger.error("Chat API Error", err as Record<string, unknown>);
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 

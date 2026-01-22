@@ -20,7 +20,7 @@ export function useChat(conversationId?: string | null) {
     useState(false);
 
   const [activeId, setActiveId] = useState<string | null>(
-    conversationId || null
+    conversationId || null,
   );
 
   // Sync activeId with prop when prop changes
@@ -74,7 +74,7 @@ export function useChat(conversationId?: string | null) {
               fileName: m.fileName ?? undefined,
               isRag: m.isRag ?? false,
               isImage: m.isImage ?? false,
-            }))
+            })),
           );
         }
       } catch (err) {
@@ -158,7 +158,7 @@ export function useChat(conversationId?: string | null) {
       globalThis.history.replaceState(
         null,
         "",
-        `/chat/${currentConversationId}`
+        `/chat/${currentConversationId}`,
       );
 
       let type = "text";

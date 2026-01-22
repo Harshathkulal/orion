@@ -1,10 +1,10 @@
-import { ChatPayload  } from "@/types/types";
+import { ChatPayload } from "@/types/types";
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 // Stream response chunks and return final text
 export async function streamResponse(
   response: Response,
-  onChunk: (text: string) => void
+  onChunk: (text: string) => void,
 ): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) throw new Error("No response stream");
@@ -30,9 +30,7 @@ export async function streamResponse(
   return result;
 }
 
-export async function sendMessage(
-  payload: ChatPayload
-): Promise<Response> {
+export async function sendMessage(payload: ChatPayload): Promise<Response> {
   const response = await fetch(`${BASE_URL}/text`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -40,8 +38,7 @@ export async function sendMessage(
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Something went wrong.");
+    throw new Error("Something went wrong. Please try again later.");
   }
 
   return response;
