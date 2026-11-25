@@ -3,9 +3,9 @@ FROM node:22-alpine AS base
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json package-lock.json .npmrc ./
 COPY drizzle.config.ts ./
-RUN npm install
+RUN npm ci
 
 COPY . .
 

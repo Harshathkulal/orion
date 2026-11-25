@@ -22,11 +22,14 @@ export function useChat(conversationId?: string | null) {
   const [activeId, setActiveId] = useState<string | null>(
     conversationId || null,
   );
+  const [previousConversationId, setPreviousConversationId] =
+    useState(conversationId);
 
-  // Sync activeId with prop when prop changes
-  useEffect(() => {
+  // Adjust activeId during render when the route prop changes.
+  if (conversationId !== previousConversationId) {
+    setPreviousConversationId(conversationId);
     setActiveId(conversationId || null);
-  }, [conversationId]);
+  }
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const hasLoadedRef = useRef(false);

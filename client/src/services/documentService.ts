@@ -26,7 +26,8 @@ export async function uploadDocument(file: File): Promise<Document> {
   }
 }
 
-export async function deleteDocument(documentId: string): Promise<boolean> {
+export async function deleteDocument(_documentId: string): Promise<boolean> {
+  void _documentId;
   // TODO
   // await fetch(`/api/delete/${documentId}`, { method: "DELETE" });
 

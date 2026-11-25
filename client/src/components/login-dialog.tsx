@@ -1,4 +1,7 @@
+"use client";
+
 import React from "react";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -10,8 +13,10 @@ import { Button } from "@/components/ui/button";
 import { LoginDialogProps } from "@/types/types";
 
 export default function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
+  const router = useRouter();
+
   const handleLogin = () => {
-    window.location.href = "/login";
+    router.push("/login");
   };
 
   return (

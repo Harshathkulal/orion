@@ -26,7 +26,19 @@ export function useConversations() {
     }
   }, []);
 
+  const updateConversationsOptimistic = useCallback(
+    (newConversation: Conversation) => {
+      setConversations((prev) => {
+        // Prevent duplicates just in case
+        if (prev.some((c) => c.id === newConversation.id)) return prev;
+        return [newConversation, ...prev];
+      });
+    },
+    [],
+  );
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch on mount
     fetchConversations();
 
     // Listen for refresh events
@@ -45,15 +57,7 @@ export function useConversations() {
     return () => {
       globalThis.removeEventListener(SIDEBAR_REFRESH_EVENT, handleRefresh);
     };
-  }, [fetchConversations]);
-
-  const updateConversationsOptimistic = (newConversation: Conversation) => {
-    setConversations((prev) => {
-      // Prevent duplicates just in case
-      if (prev.some((c) => c.id === newConversation.id)) return prev;
-      return [newConversation, ...prev];
-    });
-  };
+  }, [fetchConversations, updateConversationsOptimistic]);
 
   return {
     conversations,
